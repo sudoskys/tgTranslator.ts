@@ -20,7 +20,7 @@ A Telegram **UserBot** that provides real-time message translation capabilities,
 1. Clone the repository
 
 ```bash
-git clone https://github.com/yourusername/i18n_me.git
+git clone https://github.com/sudoskys/i18n_me.git
 bun install
 ```
 
