@@ -229,7 +229,9 @@ client.run().then(async () => {
   // 获取自己的 Id
   myId = client._me.id;
   console.log(`Bot started with user ${myId}`);
-  
+ 
+  // 导出 session
+  // await client._client.exportSession();
   // 初始化数据库
   try {
     await chatSettingsService.initializeDatabase();
