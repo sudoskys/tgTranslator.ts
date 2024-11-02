@@ -155,28 +155,42 @@ client.cmd('lang', async (ctx) => {
 // 具体的逻辑
 client.on('msg.text', async (ctx) => {
   // 获取 chatId
-  const chatId = Number(ctx.message.chat.id);
+  const chatId = Number(ctx.message?.chat?.id);
+  if (!chatId) {
+    console.log("无法获取 chatId");
+    return undefined;
+  }
+
   // 获取发信人
-  const fromId = Number(ctx.message.from.id);
+  const fromId = ctx.message?.from?.id;
+  if (!fromId) {
+    console.log("无法获取发信人 ID");
+    return undefined;
+  }
+
   // 判断是否不是自己
-  if (notMe(BigInt(fromId))) {
+  if (notMe(BigInt(Number(fromId)))) {
     console.log(`[Hears] [${fromId}]`);
     return undefined;
   }
+
   // 不回复编辑消息
   if (ctx.editedMessage) {
     return undefined;
   }
+
   // 检查服务是否正确配置
   if (!translationService.isServiceConfigured()) {
     console.warn("翻译服务未正确配置，某些功能可能无法使用");
     return undefined;
   }
+
   // 获取需要翻译的文本
   let textToTranslate = ctx.message.text;
   if (!textToTranslate) {
     return undefined;
   }
+
   // 如果消息是 tl 开头，则删除 tl
   if (textToTranslate.startsWith("tl")) {
     textToTranslate = textToTranslate.slice(2);
@@ -184,13 +198,16 @@ client.on('msg.text', async (ctx) => {
     // 不是 tl 开头，则不翻译
     return undefined;
   }
+
   // 读取设置
   const settings = await chatSettingsService.getSettings(chatId);
+
   // 检查是否启用了翻译
   if (!settings || settings.enabledTranslate !== 1) {
     console.log("未启用翻译");
     return undefined;
   }
+
   // 翻译
   let nextEditMessage = ctx.message.text;
   try {
@@ -229,7 +246,7 @@ client.run().then(async () => {
   // 获取自己的 Id
   myId = client._me.id;
   console.log(`Bot started with user ${myId}`);
- 
+
   // 导出 session
   // await client._client.exportSession();
   // 初始化数据库
