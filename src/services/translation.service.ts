@@ -11,10 +11,12 @@ export class TranslationService {
       console.warn("⚠️ Translation service is not configured: OAI_API_KEY is missing");
       return;
     }
-
+    if (process.env.OAI_BASE_URL !== "https://api.openai.com/v1") {
+      console.warn("You are using a custom OpenAI API base URL, please make sure you know what you are doing.");
+    }
     try {
       const client = new OpenAI({
-        baseURL: "https://cn2us02.opapi.win/v1",
+        baseURL: process.env.OAI_BASE_URL || "https://api.openai.com/v1",
         apiKey: process.env.OAI_API_KEY,
       });
 
