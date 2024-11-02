@@ -2,7 +2,6 @@
   "apps": [
     {
       "name": "i18n_me",
-      "interpreter": "bun",
       "script": "bun start",
       "instances": 1,
       "autorestart": true,
