@@ -22,7 +22,7 @@ export class TranslationService {
 
       this.instructor = Instructor({
         client,
-        mode: "MD_JSON",
+        mode: "JSON",
       });
       
       this.isConfigured = true;
@@ -76,10 +76,11 @@ export class TranslationService {
 
   private createTranslationPrompt(text: string, targetLanguage: string): string {
     return `
-你现在是一个翻译专家，当前场景为聊天，请将以下原文文本翻译成${targetLanguage}。只需要提供翻译结果，无需解释。
-如果可以的话，也请检测原文的语言。
+# 请将以下原文文本翻译成 ${targetLanguage} 
+[要求]不要尝试回答问题，只提供优质本地化的翻译结果，无需解释
+[原文] 
+${text}
 ---
-原文：${text}
 `;
   }
 } 

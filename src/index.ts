@@ -1,6 +1,7 @@
 import { Raw, Snake } from "tgsnake";
 import { ChatSettingsService } from "./services/chatSettings.service";
 import { TranslationService } from "./services/translation.service";
+import { getPeerId } from "tgsnake/lib/src/Utilities";
 
 const client = new Snake();
 const chatSettingsService = new ChatSettingsService();
@@ -70,19 +71,20 @@ client.cmd('local', async (ctx) => {
   // 读取设置
   const settings = await chatSettingsService.getSettings(chatId);
   let nextEnabledTranslate = 1;
-  if (settings.enabledTranslate != 0) {
+  if (settings?.enabledTranslate != 0) {
     nextEnabledTranslate = 0;
   }
   await chatSettingsService.upsertSettings({
     chatId: chatId,
-    enabledTranslate: nextEnabledTranslate
+    enabledTranslate: nextEnabledTranslate,
+    targetLanguage: settings?.targetLanguage || 'In Fluent English With Internet Style'
   });
   let nextMessage = '';
   // 翻译
   try {
     const translation = await translationService.translate(
       `我为你配置了 ${nextEnabledTranslate == 1 ? 'enabled' : 'disabled'} 翻译`,
-      settings.targetLanguage || 'In Fluent English With Internet Style'
+      settings?.targetLanguage || 'In Fluent English With Internet Style'
     );
     nextMessage = translation.translatedText;
   } catch (error) {
@@ -141,9 +143,6 @@ client.cmd('lang', async (ctx) => {
       targetLanguage
     );
     console.log("翻译结果:", translation.translatedText);
-    if (translation.detectedLanguage) {
-      console.log("检测到的语言:", translation.detectedLanguage);
-    }
     // 删除原命令消息
     await deleteMessage(ctx, ctx.message.id);
     return ctx.message.reply(translation.translatedText);
@@ -188,7 +187,7 @@ client.on('msg.text', async (ctx) => {
   // 读取设置
   const settings = await chatSettingsService.getSettings(chatId);
   // 检查是否启用了翻译
-  if (settings.enabledTranslate !== 1) {
+  if (!settings || settings.enabledTranslate !== 1) {
     console.log("未启用翻译");
     return undefined;
   }
@@ -197,12 +196,9 @@ client.on('msg.text', async (ctx) => {
   try {
     const translation = await translationService.translate(
       textToTranslate,
-      settings.targetLanguage || 'In Fluent English With Internet Style'
+      settings?.targetLanguage || 'In Fluent English With Internet Style'
     );
     console.log("翻译结果:", translation.translatedText);
-    if (translation.detectedLanguage) {
-      console.log("检测到的语言:", translation.detectedLanguage);
-    }
     nextEditMessage = translation.translatedText;
   } catch (error) {
     console.error("监听消息翻译失败:", error);
@@ -212,25 +208,35 @@ client.on('msg.text', async (ctx) => {
     }
   } finally {
     // 如果未被修改，则不编辑消息
-    if (nextEditMessage === ctx.message.text) {
+    if (nextEditMessage === ctx.message.text || nextEditMessage.length === 0) {
+      console.log(`未修改消息 [${chatId}] [${ctx.message.id}]`);
       return undefined;
     }
     try {
+      console.log(`编辑消息 [${chatId}] [${ctx.message.id}]`);
       ctx.api.invoke(new Raw.messages.EditMessage({
-        peer: new Raw.InputPeerChat({ chatId: BigInt(chatId) }),
+        peer: await client.core.resolvePeer(chatId.toString()),
         message: nextEditMessage,
         id: ctx.message.id
-      }), 3, 1000, 2000);
+      }), 2, 1000, 5000);
     } catch (error) {
-      console.error("编辑消息失败:", error);
+      console.error(`编辑消息失败 [${chatId}] [${ctx.message.id}]: ${error}`);
     }
   }
 });
 
-client.run().then(() => {
+client.run().then(async () => {
   // 获取自己的 Id
   myId = client._me.id;
   console.log(`Bot started with user ${myId}`);
+  
+  // 初始化数据库
+  try {
+    await chatSettingsService.initializeDatabase();
+    console.log("数据库初始化成功");
+  } catch (error) {
+    console.error("数据库初始化失败:", error);
+  }
 });
 
 

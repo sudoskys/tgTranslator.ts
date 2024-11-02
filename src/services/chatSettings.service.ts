@@ -3,11 +3,22 @@ import { chatSettings } from "../db/schema";
 import { ChatSettings, chatSettingsSchema } from "../schemas/chatSettings.schema";
 import 'dotenv/config';
 import { drizzle } from 'drizzle-orm/bun-sqlite';
+import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
 
 const db = drizzle(process.env.DB_FILE_NAME || 'group.sqlite');
 
 export class ChatSettingsService {
-  // 获取设置
+  async initializeDatabase(): Promise<void> {
+    try {
+      await migrate(db, { migrationsFolder: './drizzle' });
+      console.log('数据库检查迁移完成');
+    } catch (error) {
+      if (!(error instanceof Error && error.message.includes('already exists'))) {
+        throw error;
+      }
+    }
+  }
+
   async getSettings(chatId: number): Promise<ChatSettings | null> {
     const result = await db
       .select()
@@ -18,12 +29,10 @@ export class ChatSettingsService {
     return result[0] || null;
   }
 
-  // 创建或更新设置（乐观更新）
   async upsertSettings(data: Partial<Omit<ChatSettings, "id">> & { chatId: number }): Promise<ChatSettings> {
     const existing = await this.getSettings(data.chatId);
     
     if (existing) {
-      // 更新：只更新提供的字段
       const [updated] = await db
         .update(chatSettings)
         .set({
@@ -35,7 +44,6 @@ export class ChatSettingsService {
       
       return updated;
     } else {
-      // 创建：使用默认值
       const defaultSettings = {
         chatId: data.chatId,
         enabledTranslate: 0,  // 默认禁用翻译
@@ -47,7 +55,6 @@ export class ChatSettingsService {
         ...data
       };
 
-      // 验证完整数据
       const validated = chatSettingsSchema.parse(newData);
       
       const [created] = await db
@@ -59,7 +66,6 @@ export class ChatSettingsService {
     }
   }
 
-  // 更新翻译开关
   async updateTranslateEnabled(chatId: number, enabled: boolean): Promise<ChatSettings> {
     const [updated] = await db
       .update(chatSettings)
@@ -76,7 +82,6 @@ export class ChatSettingsService {
     return updated;
   }
 
-  // 更新目标语言
   async updateTargetLanguage(chatId: number, language: string): Promise<ChatSettings> {
     const validated = chatSettingsSchema.shape.targetLanguage.parse(language);
     
