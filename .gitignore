@@ -52,6 +52,7 @@ i18n_me_prod
 *.db
 src/start.d.ts
 tgsnake.config.js
+tgsnake.*.js
 
 # cache
 user.cache
