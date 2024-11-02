@@ -33,6 +33,30 @@ OAI_API_KEY=sk-xxxxx
 OAI_MODEL=gpt-4o
 ```
 
+3. Edit `tgsnake.config.js`
+
+```bash
+nano tgsnake.config.js
+```
+
+get your `apiHash` and `apiId` from [my.telegram.org](https://my.telegram.org)
+
+```js
+/** @type {import('tgsnake').Options } */
+const config = {
+  apiHash : 'xxxx',
+  apiId : 123456,
+  login : {
+    botToken : '',
+    sessionName : 'user',
+    forceDotSession : true,
+  },
+  logLevel : ['error','info'],
+  clientOptions : {"ipv6":false},
+  plugins : []
+}
+module.exports = config
+``` 
 
 ## Usage
 
