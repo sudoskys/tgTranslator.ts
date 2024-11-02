@@ -1,0 +1,28 @@
+{
+  "name": "i18n_me",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "bun run src/index.ts",
+    "build": "bun build --compile ./src/index.ts --outfile i18n_me",
+    "build:prod": "bun build --compile --minify --sourcemap ./src/index.ts --outfile i18n_me_prod"
+  },
+  "dependencies": {
+    "@instructor-ai/instructor": "^1.5.0",
+    "@libsql/client": "^0.14.0",
+    "dotenv": "^16.4.5",
+    "drizzle-orm": "^0.36.0",
+    "openai": "^4.70.2",
+    "tgsnake": "^3.3.2",
+    "zod": "^3.23.8"
+  },
+  "overrides": {
+    "tgsnake": {
+      "@tgsnake/core": "latest"
+    }
+  },
+  "devDependencies": {
+    "@types/bun": "^1.1.12",
+    "drizzle-kit": "^0.27.1",
+    "tsx": "^4.19.2"
+  }
+}
