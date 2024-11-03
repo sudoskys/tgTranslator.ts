@@ -21,7 +21,7 @@ A Telegram **UserBot** that provides real-time message translation capabilities,
 
 ```bash
 git clone https://github.com/sudoskys/i18n_me.git
-bun install
+pnpm install
 ```
 
 2. Create a `.env` file in the root directory with the following variables:
@@ -65,7 +65,7 @@ module.exports = config
 Development mode:
 
 ```bash
-bun run start
+pnpm run start
 ```
 
 Build for production:

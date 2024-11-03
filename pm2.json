@@ -2,7 +2,7 @@
   "apps": [
     {
       "name": "i18n_me",
-      "script": "bun run src/index.ts",
+      "script": "pnpm run start",
       "instances": 1,
       "max_memory_restart": "300M",
       "env": {
