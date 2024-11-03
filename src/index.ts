@@ -167,6 +167,12 @@ client.on('msg.text', async (ctx) => {
     console.log("无法获取发信人 ID");
     return undefined;
   }
+  // 获取消息Id
+  const messageId = ctx.message?.id;
+  if (!messageId) {
+    console.log("无法获取消息Id");
+    return undefined;
+  }
 
   // 判断是否不是自己
   if (notMe(BigInt(Number(fromId)))) {
@@ -226,18 +232,18 @@ client.on('msg.text', async (ctx) => {
   } finally {
     // 如果未被修改，则不编辑消息
     if (nextEditMessage === ctx.message.text || nextEditMessage.length === 0) {
-      console.log(`未修改消息 [${chatId}] [${ctx.message.id}]`);
+      console.log(`未修改消息 [${chatId}] [${messageId}]`);
       return undefined;
     }
     try {
-      console.log(`编辑消息 [${chatId}] [${ctx.message.id}]`);
+      console.log(`编辑消息 [${chatId}] [${messageId}]`);
       ctx.api.invoke(new Raw.messages.EditMessage({
         peer: await client.core.resolvePeer(chatId.toString()),
         message: nextEditMessage,
-        id: ctx.message.id
+        id: messageId
       }), 2, 1000, 5000);
     } catch (error) {
-      console.error(`编辑消息失败 [${chatId}] [${ctx.message.id}]: ${error}`);
+      console.error(`编辑消息失败 [${chatId}] [${messageId}]: ${error}`);
     }
   }
 });
