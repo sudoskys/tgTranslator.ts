@@ -151,7 +151,7 @@ client.cmd('use', async (ctx) => {
   // 当场翻译消息表示
   try {
     const translation = await translationService.translate(
-      `你好，我会使用 ${targetLanguage} 和你进行无障碍辅助交流。不要惊讶`, // 不允许修改
+      `你好，我会使用 ${targetLanguage} 和你进行无障碍辅助交流`, // 不允许修改
       targetLanguage
     );
     console.log("翻译结果:", translation.translatedText);
