@@ -2,9 +2,9 @@
   "name": "i18n_me",
   "version": "1.0.0",
   "scripts": {
-    "start": "bun run src/index.ts",
-    "build": "bun build --compile ./src/index.ts --outfile i18n_me",
-    "build:prod": "bun build --compile --minify --sourcemap ./src/index.ts --outfile i18n_me_prod"
+    "start": "tsx src/index.ts",
+    "build": "bun build ./src/index.ts --outfile i18n_me",
+    "build:prod": "bun build --minify --sourcemap ./src/index.ts --outfile i18n_me_prod"
   },
   "dependencies": {
     "@instructor-ai/instructor": "^1.5.0",

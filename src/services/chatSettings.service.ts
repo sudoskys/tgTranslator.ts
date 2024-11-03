@@ -2,10 +2,10 @@ import { eq } from "drizzle-orm";
 import { chatSettings } from "../db/schema";
 import { ChatSettings, chatSettingsSchema } from "../schemas/chatSettings.schema";
 import 'dotenv/config';
-import { drizzle } from 'drizzle-orm/bun-sqlite';
-import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
+import { drizzle } from 'drizzle-orm/libsql';
+import { migrate } from 'drizzle-orm/libsql/migrator';
 
-const db = drizzle(process.env.DB_FILE_NAME || 'group.sqlite');
+const db = drizzle(process.env.DB_FILE_NAME || 'file:group.db');
 
 export class ChatSettingsService {
   async initializeDatabase(): Promise<void> {
