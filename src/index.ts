@@ -1,7 +1,9 @@
 import { Raw, Snake } from "tgsnake";
 import { ChatSettingsService } from "./services/chatSettings.service";
 import { TranslationService } from "./services/translation.service";
-import { getPeerId } from "tgsnake/lib/src/Utilities";
+import { Combine, FilterQuery, TypeUpdateExtended } from "tgsnake/lib/src/Context";
+import { Message } from "tgsnake/lib/src/TL/Messages";
+import { ContextUpdate } from "tgsnake/lib/src/TL/Updates";
 
 const client = new Snake();
 const chatSettingsService = new ChatSettingsService();
@@ -14,7 +16,7 @@ const notMe = (id: bigint) => {
   return id !== myId;
 };
 
-// 添加中间件来处理身份验证
+// 身份验证
 client.use(async (ctx, next) => {
   const fromId = ctx.message?.from?.id;
   if (fromId && notMe(BigInt(Number(fromId)))) {
@@ -23,7 +25,7 @@ client.use(async (ctx, next) => {
   return next();
 });
 
-// 添加一个通用的删除消息函数
+// 删除消息
 const deleteMessage = async (ctx: any, messageId: number, delay: number = 3000) => {
   try {
     // 延迟指定时间后删除消息
@@ -65,8 +67,7 @@ client.cmd('ping', async (ctx) => {
   return ctx.message.reply(`Chat ID: ${chatId}`);
 });
 
-// 启用翻译对齐
-client.cmd('local', async (ctx) => {
+const localCommand= async (ctx: Combine<Combine<FilterQuery<TypeUpdateExtended<Message, "text">, "message">, ContextUpdate>, {}>) => {
   console.log("命令：翻译对齐");
   // 获取 chatId
   const chatId = Number(ctx.message.chat.id);
@@ -106,11 +107,10 @@ client.cmd('local', async (ctx) => {
   await deleteMessage(ctx, ctx.message.id);
   // 发消息表明自己已经启用
   return ctx.message.reply(nextMessage);
-});
+}
 
 
-// 设置群组的目标语言
-client.cmd('use', async (ctx) => {
+const useCommand = async (ctx: Combine<Combine<FilterQuery<TypeUpdateExtended<Message, "text">, "message">, ContextUpdate>, {}>) => {
   console.log("命令：设置目标语言");
   // 获取 chatId
   const chatId = Number(ctx.message.chat.id);
@@ -162,6 +162,17 @@ client.cmd('use', async (ctx) => {
     console.error("设置消息翻译失败:", error);
     return ctx.message.reply(`Mistake!`);
   }
+}
+
+
+// 设置群组的目标语言
+client.cmd('use', async (ctx) => {
+  await useCommand(ctx);
+});
+
+// 启用翻译对齐
+client.cmd('local', async (ctx) => {
+  await localCommand(ctx);
 });
 
 // 具体的逻辑
@@ -191,10 +202,22 @@ client.on('msg.text', async (ctx) => {
     console.log(`[Hears] [${fromId}]`);
     return undefined;
   }
-
+  
   // 不回复编辑消息
   if (ctx.editedMessage) {
     return undefined;
+  }
+
+  // 处理 ,use 命令
+  if ((ctx.message?.text || '').startsWith(",use")) {
+    await useCommand(ctx);
+    return;
+  }
+
+  // 处理 ,local 命令
+  if ((ctx.message?.text || '').startsWith(",local")) {
+    await localCommand(ctx);
+    return;
   }
 
   // 检查服务是否正确配置
