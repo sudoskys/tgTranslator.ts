@@ -28,9 +28,20 @@ const deleteMessage = async (ctx: any, messageId: number, delay: number = 3000) 
   try {
     // 延迟指定时间后删除消息
     setTimeout(async () => {
-      await ctx.api.invoke(new Raw.messages.DeleteMessages({
-        id: [messageId],
-      }), 1, 1000, 2000);
+      const peer = await client.core.resolvePeer(ctx.message.chat.id.toString());
+      
+      // 根据peer类型选择不同的删除方法
+      if (peer instanceof Raw.InputPeerChannel) {
+        await ctx.api.invoke(new Raw.channels.DeleteMessages({
+          channel: peer,
+          id: [messageId]
+        }), 1, 1000, 2000);
+      } else {
+        await ctx.api.invoke(new Raw.messages.DeleteMessages({
+          id: [messageId],
+          revoke: true
+        }), 1, 1000, 2000);
+      }
     }, delay);
   } catch (error) {
     console.error("删除消息失败:", error);
@@ -99,7 +110,7 @@ client.cmd('local', async (ctx) => {
 
 
 // 设置群组的目标语言
-client.cmd('lang', async (ctx) => {
+client.cmd('use', async (ctx) => {
   console.log("命令：设置目标语言");
   // 获取 chatId
   const chatId = Number(ctx.message.chat.id);
@@ -130,6 +141,7 @@ client.cmd('lang', async (ctx) => {
   // 更新设置
   await chatSettingsService.upsertSettings({
     chatId: chatId,
+    enabledTranslate: 1,
     targetLanguage: targetLanguage || 'In Fluent English With Internet Style'
   });
   // 检查服务
@@ -139,7 +151,7 @@ client.cmd('lang', async (ctx) => {
   // 当场翻译消息表示
   try {
     const translation = await translationService.translate(
-      `我在这个群组配置了语言自适应 ${targetLanguage}。有问题记得@我`, // 不允许修改
+      `♿无障碍翻译已启用。目标语言：${targetLanguage}。有问题可以问我。`, // 不允许修改
       targetLanguage
     );
     console.log("翻译结果:", translation.translatedText);

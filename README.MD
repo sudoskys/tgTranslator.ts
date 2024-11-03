@@ -80,7 +80,7 @@ pm2 status
 
 - `/ping` - Test if the bot is active and get current chat ID
 - `/local` - Toggle translation feature on/off
-- `/lang [target_language]` - Set target language for translations
+- `/use [target_language]` - Set target language for translations
 - `tl [text]` - Translate the following text (prefix any message with 'tl' to translate)
 
 ## Acknowledgments
