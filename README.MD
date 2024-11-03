@@ -28,7 +28,7 @@ pnpm install
 
 ```env
 OAI_BASE_URL=https://api.openai.com/v1
-DB_FILE_NAME=group.sqlite
+DB_FILE_NAME=file:group.db
 OAI_API_KEY=sk-xxxxx
 OAI_MODEL=gpt-4o
 ```
