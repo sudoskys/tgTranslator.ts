@@ -80,6 +80,8 @@ pm2 start pm2.json
 pm2 status
 ```
 
+Do not share your `.env` file or `.session` file with others.
+
 ### Bot Commands
 
 - `/ping` - Test if the bot is active and get current chat ID
