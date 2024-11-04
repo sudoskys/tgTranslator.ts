@@ -62,16 +62,20 @@ module.exports = config
 
 ### Starting the Bot
 
-Development mode:
+Connect to your Telegram account and start the bot:
 
 ```bash
 pnpm run start
 ```
 
+Then, Ctrl+C to stop the bot and run the following command to start the bot in production mode:
+
 Build for production:
 
 ```bash
+apt install npm
 npm install -g pm2
+# In the repo root directory
 pm2 start pm2.json
 pm2 status
 ```
