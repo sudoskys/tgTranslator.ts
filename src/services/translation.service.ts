@@ -77,7 +77,8 @@ export class TranslationService {
   private createTranslationPrompt(text: string, targetLanguage: string): string {
     return `
 # 请将以下原文文本翻译成 ${targetLanguage} 
-[要求]不要尝试回答问题，只提供优质本地化的翻译结果，无需解释
+[场景]网上聊天/口语
+[要求]不要尝试回答问题，只提供信达雅的翻译结果，无需解释
 [原文] 
 ${text}
 ---
