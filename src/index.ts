@@ -25,45 +25,39 @@ client.use(async (ctx, next) => {
   return next();
 });
 
-// 删除消息
-const deleteMessage = async (ctx: any, messageId: number, delay: number = 3000) => {
-  try {
-    // 延迟指定时间后删除消息
-    setTimeout(async () => {
-      const peer = await client.core.resolvePeer(ctx.message.chat.id.toString());
-      
-      // 根据peer类型选择不同的删除方法
-      if (peer instanceof Raw.InputPeerChannel) {
-        await ctx.api.invoke(new Raw.channels.DeleteMessages({
-          channel: peer,
-          id: [messageId]
-        }), 1, 1000, 2000);
-      } else {
-        await ctx.api.invoke(new Raw.messages.DeleteMessages({
-          id: [messageId],
-          revoke: true
-        }), 1, 1000, 2000);
-      }
-    }, delay);
-  } catch (error) {
-    console.error("删除消息失败:", error);
-  }
-};
-
 // 巴别塔翻译
 client.cmd('ping', async (ctx) => {
   console.log("命令：活动测试");
   // 获取 chatId
   const chatId = Number(ctx.message.chat.id);
+  
   // 获取发信人
   const fromId = Number(ctx.message.from.id);
+
+  // 获取消息Id
+  const messageId = ctx.message.id;
+
+  // 判断是否存在消息Id
+  if (!messageId || !chatId || !fromId) {
+    console.log("参数不完整");
+    console.log(`消息格式: ${ctx.message}`);
+    return undefined;
+  }
+
   // 判断是否不是自己
   if (notMe(BigInt(fromId))) {
     console.log(`[Ping] [${fromId}]`);
     return undefined;
   }
+
   // 删除原命令消息
-  await deleteMessage(ctx, ctx.message.id);
+  try{
+    setTimeout(async () => {
+      await ctx.api.deleteMessage(chatId.toString(), messageId);
+    }, 3000);
+  } catch (error) {
+    console.error("删除消息失败:", error);
+  }
   return ctx.message.reply(`Chat ID: ${chatId}`);
 });
 
@@ -71,27 +65,50 @@ const localCommand= async (ctx: Combine<Combine<FilterQuery<TypeUpdateExtended<M
   console.log("命令：翻译对齐");
   // 获取 chatId
   const chatId = Number(ctx.message.chat.id);
+
   // 获取发信人
   const fromId = Number(ctx.message.from.id);
+
+  // 获取消息Id
+  const messageId = ctx.message.id;
+
+  // 判断是否存在消息Id
+  if (!messageId || !chatId || !fromId) {
+    console.log("参数不完整");
+    console.log(`消息格式: ${ctx.message}`);
+    return undefined;
+  }
+
   // 判断是否不是自己
   if (notMe(BigInt(fromId))) {
     console.log(`[Local] [${fromId}]`);
     return undefined;
   }
-  // 删除原命令消息
-  await deleteMessage(ctx, ctx.message.id);
+
   // 读取设置
   const settings = await chatSettingsService.getSettings(chatId);
   let nextEnabledTranslate = 1;
   if (settings?.enabledTranslate != 0) {
     nextEnabledTranslate = 0;
   }
+
+  // 更新设置
   await chatSettingsService.upsertSettings({
     chatId: chatId,
     enabledTranslate: nextEnabledTranslate,
     targetLanguage: settings?.targetLanguage || 'In Fluent English With Internet Style'
   });
   let nextMessage = '';
+
+  // 删除原命令消息
+  try{
+    setTimeout(async () => {
+      await ctx.api.deleteMessage(chatId.toString(), messageId);
+    }, 3000);
+  } catch (error) {
+    console.error("删除消息失败:", error);
+  }
+
   // 翻译
   try {
     const translation = await translationService.translate(
@@ -103,8 +120,6 @@ const localCommand= async (ctx: Combine<Combine<FilterQuery<TypeUpdateExtended<M
     console.error("翻译失败:", error);
     nextMessage = `Now ${nextEnabledTranslate == 1 ? 'enabled' : 'disabled'} translate`;
   }
-  // 删除原命令消息
-  await deleteMessage(ctx, ctx.message.id);
   // 发消息表明自己已经启用
   return ctx.message.reply(nextMessage);
 }
@@ -114,22 +129,33 @@ const useCommand = async (ctx: Combine<Combine<FilterQuery<TypeUpdateExtended<Me
   console.log("命令：设置目标语言");
   // 获取 chatId
   const chatId = Number(ctx.message.chat.id);
+
   // 获取发信人
   const fromId = Number(ctx.message.from.id);
+
+  // 判断是否存在发信人或消息
+  const messageId = ctx.message.id;
+  if (!messageId || !chatId || !fromId) {
+    console.log("参数不完整");
+    console.log(`消息格式: ${ctx.message}`);
+    return undefined;
+  }
+
   // 判断是否不是自己
   if (notMe(BigInt(fromId))) {
     console.log(`[Lang] [${fromId}]`);
     return undefined;
   }
-  // 删除原命令消息
-  await deleteMessage(ctx, ctx.message.id);
+
   // 获得文本内容
   const text = ctx.message.text || '';
+
   // 如果没有文本内容，则设置为当前群组的目标语言
   let targetLanguage = 'In Fluent English With Internet Style';
   if (text.length != 0) {
     targetLanguage = text.split(' ')[1];
   }
+
   // 如果目标语言为空，则设置为当前群组的目标语言
   if (!targetLanguage || targetLanguage.length == 0) {
     if (ctx.message.replyToMessage && ctx.message.replyToMessage.text) {
@@ -138,16 +164,28 @@ const useCommand = async (ctx: Combine<Combine<FilterQuery<TypeUpdateExtended<Me
       targetLanguage = `Used Language of "${ctx.message.chat.title || ctx.message.chat.bio}"`;
     }
   }
+
   // 更新设置
   await chatSettingsService.upsertSettings({
     chatId: chatId,
     enabledTranslate: 1,
     targetLanguage: targetLanguage || 'In Fluent English With Internet Style'
   });
+
   // 检查服务
   if (!translationService.isServiceConfigured()) {
     return ctx.message.reply(`I configured translation to ${targetLanguage}, but service is not configured`);
   }
+
+  // 删除原命令消息
+  try{
+    setTimeout(async () => {
+      await ctx.api.deleteMessage(chatId.toString(), messageId);
+    }, 3000);
+  } catch (error) {
+    console.error("删除消息失败:", error);
+  }
+
   // 当场翻译消息表示
   try {
     const translation = await translationService.translate(
@@ -155,8 +193,6 @@ const useCommand = async (ctx: Combine<Combine<FilterQuery<TypeUpdateExtended<Me
       targetLanguage
     );
     console.log("翻译结果:", translation.translatedText);
-    // 删除原命令消息
-    await deleteMessage(ctx, ctx.message.id);
     return ctx.message.reply(translation.translatedText);
   } catch (error) {
     console.error("设置消息翻译失败:", error);
@@ -179,21 +215,17 @@ client.cmd('local', async (ctx) => {
 client.on('msg.text', async (ctx) => {
   // 获取 chatId
   const chatId = Number(ctx.message?.chat?.id);
-  if (!chatId) {
-    console.log("无法获取 chatId");
-    return undefined;
-  }
 
   // 获取发信人
   const fromId = ctx.message?.from?.id;
-  if (!fromId) {
-    console.log("无法获取发信人 ID");
-    return undefined;
-  }
+
   // 获取消息Id
   const messageId = ctx.message?.id;
-  if (!messageId) {
-    console.log("无法获取消息Id");
+
+  // 判断是否存在消息Id
+  if (!messageId || !chatId || !fromId) {
+    console.log("参数不完整");
+    console.log(`消息格式: ${ctx.message}`);
     return undefined;
   }
 
@@ -287,7 +319,6 @@ client.run().then(async () => {
   // 获取自己的 Id
   myId = client._me.id;
   console.log(`Bot started with user ${myId}`);
-
   // 导出 session
   // await client._client.exportSession();
   // 初始化数据库
