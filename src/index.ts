@@ -18,7 +18,7 @@ const notMe = (id: bigint) => {
 
 // 身份验证
 client.use(async (ctx, next) => {
-  const fromId = ctx.message?.from?.id;
+  const fromId = ctx.message?.from?.id || ctx.message?.senderChat?.id;
   if (fromId && notMe(BigInt(Number(fromId)))) {
     return undefined;
   }
@@ -29,13 +29,13 @@ client.use(async (ctx, next) => {
 client.cmd('ping', async (ctx) => {
   console.log("命令：活动测试");
   // 获取 chatId
-  const chatId = Number(ctx.message.chat.id);
-  
+  const chatId = Number(ctx.message?.chat?.id);
+
   // 获取发信人
-  const fromId = Number(ctx.message.from.id);
+  const fromId = Number(ctx.message?.from?.id) || Number(ctx.message?.senderChat?.id);
 
   // 获取消息Id
-  const messageId = ctx.message.id;
+  const messageId = ctx.message?.id;
 
   // 判断是否存在消息Id
   if (!messageId || !chatId || !fromId) {
@@ -64,13 +64,13 @@ client.cmd('ping', async (ctx) => {
 const localCommand= async (ctx: Combine<Combine<FilterQuery<TypeUpdateExtended<Message, "text">, "message">, ContextUpdate>, {}>) => {
   console.log("命令：翻译对齐");
   // 获取 chatId
-  const chatId = Number(ctx.message.chat.id);
+  const chatId = Number(ctx.message?.chat?.id);
 
   // 获取发信人
-  const fromId = Number(ctx.message.from.id);
+  const fromId = Number(ctx.message?.from?.id) || Number(ctx.message?.senderChat?.id);
 
   // 获取消息Id
-  const messageId = ctx.message.id;
+  const messageId = ctx.message?.id;
 
   // 判断是否存在消息Id
   if (!messageId || !chatId || !fromId) {
@@ -128,13 +128,13 @@ const localCommand= async (ctx: Combine<Combine<FilterQuery<TypeUpdateExtended<M
 const useCommand = async (ctx: Combine<Combine<FilterQuery<TypeUpdateExtended<Message, "text">, "message">, ContextUpdate>, {}>) => {
   console.log("命令：设置目标语言");
   // 获取 chatId
-  const chatId = Number(ctx.message.chat.id);
+  const chatId = Number(ctx.message?.chat?.id);
 
   // 获取发信人
-  const fromId = Number(ctx.message.from.id);
+  const fromId = Number(ctx.message?.from?.id) || Number(ctx.message?.senderChat?.id);
 
   // 判断是否存在发信人或消息
-  const messageId = ctx.message.id;
+  const messageId = ctx.message?.id;
   if (!messageId || !chatId || !fromId) {
     console.log("参数不完整");
     console.log(`消息格式: ${ctx.message}`);
@@ -217,7 +217,7 @@ client.on('msg.text', async (ctx) => {
   const chatId = Number(ctx.message?.chat?.id);
 
   // 获取发信人
-  const fromId = ctx.message?.from?.id;
+  const fromId = ctx.message?.from?.id || ctx.message?.senderChat?.id;
 
   // 获取消息Id
   const messageId = ctx.message?.id;
