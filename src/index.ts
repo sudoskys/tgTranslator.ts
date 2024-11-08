@@ -51,7 +51,7 @@ client.cmd('ping', async (ctx) => {
   }
 
   // 删除原命令消息
-  try{
+  try {
     setTimeout(async () => {
       await ctx.api.deleteMessage(chatId.toString(), messageId);
     }, 3000);
@@ -61,7 +61,7 @@ client.cmd('ping', async (ctx) => {
   return ctx.message.reply(`Chat ID: ${chatId}`);
 });
 
-const localCommand= async (ctx: Combine<Combine<FilterQuery<TypeUpdateExtended<Message, "text">, "message">, ContextUpdate>, {}>) => {
+const localCommand = async (ctx: Combine<Combine<FilterQuery<TypeUpdateExtended<Message, "text">, "message">, ContextUpdate>, {}>) => {
   console.log("命令：翻译对齐");
   // 获取 chatId
   const chatId = Number(ctx.message?.chat?.id);
@@ -101,7 +101,7 @@ const localCommand= async (ctx: Combine<Combine<FilterQuery<TypeUpdateExtended<M
   let nextMessage = '';
 
   // 删除原命令消息
-  try{
+  try {
     setTimeout(async () => {
       await ctx.api.deleteMessage(chatId.toString(), messageId);
     }, 3000);
@@ -178,7 +178,7 @@ const useCommand = async (ctx: Combine<Combine<FilterQuery<TypeUpdateExtended<Me
   }
 
   // 删除原命令消息
-  try{
+  try {
     setTimeout(async () => {
       await ctx.api.deleteMessage(chatId.toString(), messageId);
     }, 3000);
@@ -200,6 +200,52 @@ const useCommand = async (ctx: Combine<Combine<FilterQuery<TypeUpdateExtended<Me
   }
 }
 
+const showCommand = async (ctx: Combine<Combine<FilterQuery<TypeUpdateExtended<Message, "text">, "message">, ContextUpdate>, {}>) => {
+  console.log("命令：显示当前设置");
+  // 获取 chatId
+  const chatId = Number(ctx.message?.chat?.id);
+
+  // 获取发信人
+  const fromId = Number(ctx.message?.from?.id) || Number(ctx.message?.senderChat?.id);
+
+  // 判断是否存在消息Id
+  const messageId = ctx.message?.id;
+
+  // 判断是否存在消息Id
+  if (!messageId || !chatId || !fromId) {
+    console.log("参数不完整");
+    console.log(`消息格式: ${ctx.message}`);
+    return undefined;
+  }
+
+  // 判断是否不是自己
+  if (notMe(BigInt(fromId))) {
+    console.log(`[Show] [${fromId}]`);
+    return undefined;
+  }
+
+  // 读取设置
+  const settings = await chatSettingsService.getSettings(chatId);
+  if (!settings) {
+    return ctx.message.reply("未找到设置");
+  }
+
+  // 删除原命令消息
+  try {
+    setTimeout(async () => {
+      await ctx.api.deleteMessage(chatId.toString(), messageId);
+    }, 3000);
+  } catch (error) {
+    console.error("删除消息失败:", error);
+  }
+  // Show settings
+  return ctx.message.reply(`Translation enabled: ${settings.enabledTranslate ? 'Yes' : 'No'}\nTarget language: ${settings.targetLanguage}`);
+};
+
+// 设置群组的目标语言
+client.cmd('show', async (ctx) => {
+  await useCommand(ctx);
+});
 
 // 设置群组的目标语言
 client.cmd('use', async (ctx) => {
@@ -209,6 +255,11 @@ client.cmd('use', async (ctx) => {
 // 启用翻译对齐
 client.cmd('local', async (ctx) => {
   await localCommand(ctx);
+});
+
+// 使用 show 命令查看当前群组的目标语言
+client.cmd('show', async (ctx) => {
+  await showCommand(ctx);
 });
 
 // 具体的逻辑
@@ -234,7 +285,7 @@ client.on('msg.text', async (ctx) => {
     console.log(`[Hears] [${fromId}]`);
     return undefined;
   }
-  
+
   // 不回复编辑消息
   if (ctx.editedMessage) {
     return undefined;
@@ -249,6 +300,12 @@ client.on('msg.text', async (ctx) => {
   // 处理 ,local 命令
   if ((ctx.message?.text || '').startsWith(",local")) {
     await localCommand(ctx);
+    return;
+  }
+
+  // 处理 ,show 命令
+  if ((ctx.message?.text || '').startsWith(",show")) {
+    await showCommand(ctx);
     return;
   }
 
@@ -329,8 +386,4 @@ client.run().then(async () => {
     console.error("数据库初始化失败:", error);
   }
 });
-
-
-
-
 
