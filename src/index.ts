@@ -242,10 +242,6 @@ const showCommand = async (ctx: Combine<Combine<FilterQuery<TypeUpdateExtended<M
   return ctx.message.reply(`Translation enabled: ${settings.enabledTranslate ? 'Yes' : 'No'}\nTarget language: ${settings.targetLanguage}`);
 };
 
-// 设置群组的目标语言
-client.cmd('show', async (ctx) => {
-  await useCommand(ctx);
-});
 
 // 设置群组的目标语言
 client.cmd('use', async (ctx) => {
