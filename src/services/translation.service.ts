@@ -2,6 +2,9 @@ import Instructor from "@instructor-ai/instructor";
 import OpenAI from "openai";
 import { Translation, translationSchema } from "../schemas/translation.schema";
 
+const DEFAULT_BASE_URL = "https://api.deepseek.com";
+const DEFAULT_MODEL = "deepseek-v4-flash";
+
 export class TranslationService {
   private instructor: ReturnType<typeof Instructor>;
   private isConfigured: boolean = false;
@@ -11,12 +14,9 @@ export class TranslationService {
       console.warn("⚠️ Translation service is not configured: OAI_API_KEY is missing");
       return;
     }
-    if (process.env.OAI_BASE_URL !== "https://api.openai.com/v1") {
-      console.warn("You are using a custom OpenAI API base URL, please make sure you know what you are doing.");
-    }
     try {
       const client = new OpenAI({
-        baseURL: process.env.OAI_BASE_URL || "https://api.openai.com/v1",
+        baseURL: process.env.OAI_BASE_URL || DEFAULT_BASE_URL,
         apiKey: process.env.OAI_API_KEY,
       });
 
@@ -51,7 +51,7 @@ export class TranslationService {
     }
 
     const prompt = this.createTranslationPrompt(text, targetLanguage);
-    const used_model = process.env.OAI_MODEL || "gpt-4o-mini";
+    const used_model = process.env.OAI_MODEL || DEFAULT_MODEL;
     console.log(`[Translation] [${used_model}] [Prompt] ${text}`);
     try {
       const translation = await this.instructor.chat.completions.create({
@@ -84,4 +84,4 @@ ${text}
 ---
 `;
   }
-} 
+}

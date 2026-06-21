@@ -53,6 +53,7 @@ i18n_me_prod
 src/start.d.ts
 tgsnake.config.js
 tgsnake.*.js
+mtcute.session*
 
 # cache
 user.cache

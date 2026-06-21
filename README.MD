@@ -13,7 +13,7 @@ A Telegram **UserBot** that provides real-time message translation capabilities,
 ## Prerequisites
 
 - [Bun](https://bun.sh/), go to [Bun](https://bun.sh/) to install
-- OpenAI API Key (for translation service)
+- DeepSeek API key or another OpenAI-compatible API key for the translation service
 
 ## Installation
 
@@ -27,36 +27,17 @@ pnpm install
 2. Create a `.env` file in the root directory with the following variables:
 
 ```env
-OAI_BASE_URL=https://api.openai.com/v1
+TELEGRAM_API_ID=123456
+TELEGRAM_API_HASH=0123456789abcdef0123456789abcdef
+TELEGRAM_SESSION_FILE=mtcute.session
+OAI_BASE_URL=https://api.deepseek.com
 DB_FILE_NAME=file:group.db
 OAI_API_KEY=sk-xxxxx
-OAI_MODEL=gpt-4o
+OAI_MODEL=deepseek-v4-flash
 ```
 
-3. Edit `tgsnake.config.js`
-
-```bash
-nano tgsnake.config.js
-```
-
-get your `apiHash` and `apiId` from [my.telegram.org](https://my.telegram.org)
-
-```js
-/** @type {import('tgsnake').Options } */
-const config = {
-  apiHash : 'xxxx',
-  apiId : 123456,
-  login : {
-    botToken : '',
-    sessionName : 'user',
-    forceDotSession : true,
-  },
-  logLevel : ['error','info'],
-  clientOptions : {"ipv6":false},
-  plugins : []
-}
-module.exports = config
-``` 
+Get your `TELEGRAM_API_ID` and `TELEGRAM_API_HASH` from [my.telegram.org](https://my.telegram.org).
+The default translation provider is DeepSeek's OpenAI-compatible API. Override `OAI_BASE_URL` and `OAI_MODEL` when using another compatible provider.
 
 ## Usage
 
@@ -91,7 +72,7 @@ Do not share your `.env` file or `.session` file with others.
 
 ## Acknowledgments
 
-- [tgsnake](https://github.com/tgsnake/tgsnake) - Telegram MTProto framework
+- [mtcute](https://github.com/mtcute/mtcute) - Telegram MTProto framework
 - [instructor-ai](https://github.com/instructor-ai/instructor-js) - Translate text with AI
 - [Bun](https://bun.sh/) - For the amazing runtime and tooling
 

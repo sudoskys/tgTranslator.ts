@@ -1,0 +1,3 @@
+[submodule "docs/reference/mtcute"]
+	path = docs/reference/mtcute
+	url = https://github.com/mtcute/mtcute.git

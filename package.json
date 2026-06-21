@@ -3,26 +3,28 @@
   "version": "1.0.0",
   "scripts": {
     "start": "tsx src/index.ts",
-    "build": "bun build ./src/index.ts --outfile i18n_me",
-    "build:prod": "bun build --minify --sourcemap ./src/index.ts --outfile i18n_me_prod"
+    "build": "bun build --target=node ./src/index.ts --outfile i18n_me",
+    "build:prod": "bun build --target=node --minify --sourcemap ./src/index.ts --outfile i18n_me_prod"
   },
   "dependencies": {
-    "@instructor-ai/instructor": "^1.5.0",
-    "@libsql/client": "^0.14.0",
-    "dotenv": "^16.4.5",
-    "drizzle-orm": "^0.36.0",
-    "openai": "^4.70.2",
-    "tgsnake": "^3.3.2",
-    "zod": "^3.23.8"
-  },
-  "overrides": {
-    "tgsnake": {
-      "@tgsnake/core": "latest"
-    }
+    "@instructor-ai/instructor": "^1.7.0",
+    "@libsql/client": "^0.17.4",
+    "@mtcute/dispatcher": "^0.30.1",
+    "@mtcute/node": "^0.30.1",
+    "dotenv": "^17.4.2",
+    "drizzle-orm": "^0.45.2",
+    "openai": "^4.104.0",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
-    "@types/bun": "^1.1.12",
-    "drizzle-kit": "^0.27.1",
-    "tsx": "^4.19.2"
+    "@types/bun": "^1.3.14",
+    "@types/node": "^26.0.0",
+    "drizzle-kit": "^0.31.10",
+    "tsx": "^4.22.4"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "better-sqlite3"
+    ]
   }
 }

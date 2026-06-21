@@ -1,385 +1,243 @@
-import { Raw, Snake } from "tgsnake";
+import { Dispatcher, filters, MessageContext, PropagationAction } from "@mtcute/dispatcher";
+import { TelegramClient } from "@mtcute/node";
+import "dotenv/config";
 import { ChatSettingsService } from "./services/chatSettings.service";
 import { TranslationService } from "./services/translation.service";
-import { Combine, FilterQuery, TypeUpdateExtended } from "tgsnake/lib/src/Context";
-import { Message } from "tgsnake/lib/src/TL/Messages";
-import { ContextUpdate } from "tgsnake/lib/src/TL/Updates";
 
-const client = new Snake();
+const DEFAULT_TARGET_LANGUAGE = "In Fluent English With Internet Style";
+
 const chatSettingsService = new ChatSettingsService();
 const translationService = new TranslationService();
 
-let myId: bigint | null = null;
-
-// 判断是否不是自己
-const notMe = (id: bigint) => {
-  return id !== myId;
+const readRequiredEnv = (name: string): string => {
+  const value = process.env[name]?.trim();
+  if (!value) {
+    throw new Error(`${name} is required`);
+  }
+  return value;
 };
 
-// 身份验证
-client.use(async (ctx, next) => {
-  const fromId = ctx.message?.from?.id || ctx.message?.senderChat?.id;
-  if (fromId && notMe(BigInt(Number(fromId)))) {
-    return undefined;
+const readApiId = (): number => {
+  const value = Number(readRequiredEnv("TELEGRAM_API_ID"));
+  if (!Number.isInteger(value)) {
+    throw new Error("TELEGRAM_API_ID must be an integer");
   }
-  return next();
-});
+  return value;
+};
 
-// 巴别塔翻译
-client.cmd('ping', async (ctx) => {
+const deleteCommandLater = (msg: MessageContext): void => {
+  setTimeout(() => {
+    msg.delete().catch((error) => {
+      console.error("删除消息失败:", error);
+    });
+  }, 3000);
+};
+
+const getTargetFromMessage = async (msg: MessageContext): Promise<string> => {
+  const commandArgs = "command" in msg && Array.isArray(msg.command) ? msg.command.slice(1) : [];
+  const targetLanguage = commandArgs[0];
+
+  if (targetLanguage && targetLanguage.length !== 0) {
+    return targetLanguage;
+  }
+
+  if (msg.text.length !== 0) {
+    const legacyTargetLanguage = msg.text.split(" ")[1];
+    if (legacyTargetLanguage && legacyTargetLanguage.length !== 0) {
+      return legacyTargetLanguage;
+    }
+  }
+
+  const replyToMessage = await msg.getReplyTo();
+  if (replyToMessage?.text) {
+    return `Used Language of "${replyToMessage.text}"`;
+  }
+
+  return `Used Language of "${msg.chat.displayName}"`;
+};
+
+const pingCommand = async (msg: MessageContext) => {
   console.log("命令：活动测试");
-  // 获取 chatId
-  const chatId = Number(ctx.message?.chat?.id);
+  const chatId = msg.chat.id;
+  console.log(`[Ping] [${msg.sender.id}]`);
+  deleteCommandLater(msg);
+  await msg.replyText(`Chat ID: ${chatId}`);
+  return PropagationAction.Stop;
+};
 
-  // 获取发信人
-  const fromId = Number(ctx.message?.from?.id) || Number(ctx.message?.senderChat?.id);
-
-  // 获取消息Id
-  const messageId = ctx.message?.id;
-
-  // 判断是否存在消息Id
-  if (!messageId || !chatId || !fromId) {
-    console.log("参数不完整");
-    console.log(`消息格式: ${ctx.message}`);
-    return undefined;
-  }
-
-  // 判断是否不是自己
-  if (notMe(BigInt(fromId))) {
-    console.log(`[Ping] [${fromId}]`);
-    return undefined;
-  }
-
-  // 删除原命令消息
-  try {
-    setTimeout(async () => {
-      await ctx.api.deleteMessage(chatId.toString(), messageId);
-    }, 3000);
-  } catch (error) {
-    console.error("删除消息失败:", error);
-  }
-  return ctx.message.reply(`Chat ID: ${chatId}`);
-});
-
-const localCommand = async (ctx: Combine<Combine<FilterQuery<TypeUpdateExtended<Message, "text">, "message">, ContextUpdate>, {}>) => {
+const localCommand = async (msg: MessageContext) => {
   console.log("命令：翻译对齐");
-  // 获取 chatId
-  const chatId = Number(ctx.message?.chat?.id);
+  const chatId = msg.chat.id;
+  console.log(`[Local] [${msg.sender.id}]`);
 
-  // 获取发信人
-  const fromId = Number(ctx.message?.from?.id) || Number(ctx.message?.senderChat?.id);
-
-  // 获取消息Id
-  const messageId = ctx.message?.id;
-
-  // 判断是否存在消息Id
-  if (!messageId || !chatId || !fromId) {
-    console.log("参数不完整");
-    console.log(`消息格式: ${ctx.message}`);
-    return undefined;
-  }
-
-  // 判断是否不是自己
-  if (notMe(BigInt(fromId))) {
-    console.log(`[Local] [${fromId}]`);
-    return undefined;
-  }
-
-  // 读取设置
   const settings = await chatSettingsService.getSettings(chatId);
   let nextEnabledTranslate = 1;
   if (settings?.enabledTranslate != 0) {
     nextEnabledTranslate = 0;
   }
 
-  // 更新设置
   await chatSettingsService.upsertSettings({
-    chatId: chatId,
+    chatId,
     enabledTranslate: nextEnabledTranslate,
-    targetLanguage: settings?.targetLanguage || 'In Fluent English With Internet Style'
+    targetLanguage: settings?.targetLanguage || DEFAULT_TARGET_LANGUAGE,
   });
-  let nextMessage = '';
 
-  // 删除原命令消息
-  try {
-    setTimeout(async () => {
-      await ctx.api.deleteMessage(chatId.toString(), messageId);
-    }, 3000);
-  } catch (error) {
-    console.error("删除消息失败:", error);
-  }
+  deleteCommandLater(msg);
 
-  // 翻译
   try {
     const translation = await translationService.translate(
-      `我为你配置了 ${nextEnabledTranslate == 1 ? 'enabled' : 'disabled'} 翻译`,
-      settings?.targetLanguage || 'In Fluent English With Internet Style'
+      `我为你配置了 ${nextEnabledTranslate == 1 ? "enabled" : "disabled"} 翻译`,
+      settings?.targetLanguage || DEFAULT_TARGET_LANGUAGE,
     );
-    nextMessage = translation.translatedText;
+    await msg.replyText(translation.translatedText);
   } catch (error) {
     console.error("翻译失败:", error);
-    nextMessage = `Now ${nextEnabledTranslate == 1 ? 'enabled' : 'disabled'} translate`;
+    await msg.replyText(`Now ${nextEnabledTranslate == 1 ? "enabled" : "disabled"} translate`);
   }
-  // 发消息表明自己已经启用
-  return ctx.message.reply(nextMessage);
-}
+  return PropagationAction.Stop;
+};
 
-
-const useCommand = async (ctx: Combine<Combine<FilterQuery<TypeUpdateExtended<Message, "text">, "message">, ContextUpdate>, {}>) => {
+const useCommand = async (msg: MessageContext) => {
   console.log("命令：设置目标语言");
-  // 获取 chatId
-  const chatId = Number(ctx.message?.chat?.id);
+  const chatId = msg.chat.id;
+  console.log(`[Lang] [${msg.sender.id}]`);
 
-  // 获取发信人
-  const fromId = Number(ctx.message?.from?.id) || Number(ctx.message?.senderChat?.id);
+  const targetLanguage = await getTargetFromMessage(msg);
 
-  // 判断是否存在发信人或消息
-  const messageId = ctx.message?.id;
-  if (!messageId || !chatId || !fromId) {
-    console.log("参数不完整");
-    console.log(`消息格式: ${ctx.message}`);
-    return undefined;
-  }
-
-  // 判断是否不是自己
-  if (notMe(BigInt(fromId))) {
-    console.log(`[Lang] [${fromId}]`);
-    return undefined;
-  }
-
-  // 获得文本内容
-  const text = ctx.message.text || '';
-
-  // 如果没有文本内容，则设置为当前群组的目标语言
-  let targetLanguage = 'In Fluent English With Internet Style';
-  if (text.length != 0) {
-    targetLanguage = text.split(' ')[1];
-  }
-
-  // 如果目标语言为空，则设置为当前群组的目标语言
-  if (!targetLanguage || targetLanguage.length == 0) {
-    if (ctx.message.replyToMessage && ctx.message.replyToMessage.text) {
-      targetLanguage = `Used Language of "${ctx.message.replyToMessage.text}"`;
-    } else {
-      targetLanguage = `Used Language of "${ctx.message.chat.title || ctx.message.chat.bio}"`;
-    }
-  }
-
-  // 更新设置
   await chatSettingsService.upsertSettings({
-    chatId: chatId,
+    chatId,
     enabledTranslate: 1,
-    targetLanguage: targetLanguage || 'In Fluent English With Internet Style'
+    targetLanguage: targetLanguage || DEFAULT_TARGET_LANGUAGE,
   });
 
-  // 检查服务
   if (!translationService.isServiceConfigured()) {
-    return ctx.message.reply(`I configured translation to ${targetLanguage}, but service is not configured`);
+    await msg.replyText(`I configured translation to ${targetLanguage}, but service is not configured`);
+    return PropagationAction.Stop;
   }
 
-  // 删除原命令消息
-  try {
-    setTimeout(async () => {
-      await ctx.api.deleteMessage(chatId.toString(), messageId);
-    }, 3000);
-  } catch (error) {
-    console.error("删除消息失败:", error);
-  }
+  deleteCommandLater(msg);
 
-  // 当场翻译消息表示
   try {
     const translation = await translationService.translate(
       `你好，我会使用 ${targetLanguage} 和你进行无障碍辅助交流`, // 不允许修改
-      targetLanguage
+      targetLanguage,
     );
     console.log("翻译结果:", translation.translatedText);
-    return ctx.message.reply(translation.translatedText);
+    await msg.replyText(translation.translatedText);
   } catch (error) {
     console.error("设置消息翻译失败:", error);
-    return ctx.message.reply(`Mistake!`);
+    await msg.replyText("Mistake!");
   }
-}
-
-const showCommand = async (ctx: Combine<Combine<FilterQuery<TypeUpdateExtended<Message, "text">, "message">, ContextUpdate>, {}>) => {
-  console.log("命令：显示当前设置");
-  // 获取 chatId
-  const chatId = Number(ctx.message?.chat?.id);
-
-  // 获取发信人
-  const fromId = Number(ctx.message?.from?.id) || Number(ctx.message?.senderChat?.id);
-
-  // 判断是否存在消息Id
-  const messageId = ctx.message?.id;
-
-  // 判断是否存在消息Id
-  if (!messageId || !chatId || !fromId) {
-    console.log("参数不完整");
-    console.log(`消息格式: ${ctx.message}`);
-    return undefined;
-  }
-
-  // 判断是否不是自己
-  if (notMe(BigInt(fromId))) {
-    console.log(`[Show] [${fromId}]`);
-    return undefined;
-  }
-
-  // 读取设置
-  const settings = await chatSettingsService.getSettings(chatId);
-  if (!settings) {
-    return ctx.message.reply("未找到设置");
-  }
-
-  // 删除原命令消息
-  try {
-    setTimeout(async () => {
-      await ctx.api.deleteMessage(chatId.toString(), messageId);
-    }, 3000);
-  } catch (error) {
-    console.error("删除消息失败:", error);
-  }
-  // Show settings
-  return ctx.message.reply(`Translation enabled: ${settings.enabledTranslate ? 'Yes' : 'No'}\nTarget language: ${settings.targetLanguage}`);
+  return PropagationAction.Stop;
 };
 
+const showCommand = async (msg: MessageContext) => {
+  console.log("命令：显示当前设置");
+  const chatId = msg.chat.id;
+  console.log(`[Show] [${msg.sender.id}]`);
 
-// 设置群组的目标语言
-client.cmd('use', async (ctx) => {
-  await useCommand(ctx);
-});
-
-// 启用翻译对齐
-client.cmd('local', async (ctx) => {
-  await localCommand(ctx);
-});
-
-// 使用 show 命令查看当前群组的目标语言
-client.cmd('show', async (ctx) => {
-  await showCommand(ctx);
-});
-
-// 具体的逻辑
-client.on('msg.text', async (ctx) => {
-  // 获取 chatId
-  const chatId = Number(ctx.message?.chat?.id);
-
-  // 获取发信人
-  const fromId = ctx.message?.from?.id || ctx.message?.senderChat?.id;
-
-  // 获取消息Id
-  const messageId = ctx.message?.id;
-
-  // 判断是否存在消息Id
-  if (!messageId || !chatId || !fromId) {
-    console.log("参数不完整");
-    console.log(`消息格式: ${ctx.message}`);
-    return undefined;
+  const settings = await chatSettingsService.getSettings(chatId);
+  if (!settings) {
+    await msg.replyText("未找到设置");
+    return PropagationAction.Stop;
   }
 
-  // 判断是否不是自己
-  if (notMe(BigInt(Number(fromId)))) {
-    console.log(`[Hears] [${fromId}]`);
-    return undefined;
-  }
+  deleteCommandLater(msg);
+  await msg.replyText(`Translation enabled: ${settings.enabledTranslate ? "Yes" : "No"}\nTarget language: ${settings.targetLanguage}`);
+  return PropagationAction.Stop;
+};
 
-  // 不回复编辑消息
-  if (ctx.editedMessage) {
-    return undefined;
-  }
+const translateMessage = async (msg: MessageContext) => {
+  const chatId = msg.chat.id;
+  const messageId = msg.id;
+  console.log(`[Hears] [${msg.sender.id}]`);
 
-  // 处理 ,use 命令
-  if ((ctx.message?.text || '').startsWith(",use")) {
-    await useCommand(ctx);
-    return;
-  }
-
-  // 处理 ,local 命令
-  if ((ctx.message?.text || '').startsWith(",local")) {
-    await localCommand(ctx);
-    return;
-  }
-
-  // 处理 ,show 命令
-  if ((ctx.message?.text || '').startsWith(",show")) {
-    await showCommand(ctx);
-    return;
-  }
-
-  // 检查服务是否正确配置
   if (!translationService.isServiceConfigured()) {
     console.warn("翻译服务未正确配置，某些功能可能无法使用");
     return undefined;
   }
 
-  // 获取需要翻译的文本
-  let textToTranslate = ctx.message.text;
+  let textToTranslate = msg.text;
   if (!textToTranslate) {
     return undefined;
   }
 
-  // 如果消息是 tl 开头，则删除 tl
   if (textToTranslate.startsWith("tl")) {
     textToTranslate = textToTranslate.slice(2);
   } else {
-    // 不是 tl 开头，则不翻译
     return undefined;
   }
 
-  // 读取设置
   const settings = await chatSettingsService.getSettings(chatId);
-
-  // 检查是否启用了翻译
   if (!settings || settings.enabledTranslate !== 1) {
     console.log("未启用翻译");
     return undefined;
   }
 
-  // 翻译
-  let nextEditMessage = ctx.message.text;
+  let nextEditMessage = msg.text;
   try {
     const translation = await translationService.translate(
       textToTranslate,
-      settings?.targetLanguage || 'In Fluent English With Internet Style'
+      settings?.targetLanguage || DEFAULT_TARGET_LANGUAGE,
     );
     console.log("翻译结果:", translation.translatedText);
     nextEditMessage = translation.translatedText;
   } catch (error) {
     console.error("监听消息翻译失败:", error);
-    // 编辑消息，如果消息以 tl 开头，删除 tl，这里仍然从 ctx.message.text 中获取，防止变量被修改
-    if (ctx.message.text.startsWith("tl")) {
-      nextEditMessage = ctx.message.text.slice(2);
-    }
-  } finally {
-    // 如果未被修改，则不编辑消息
-    if (nextEditMessage === ctx.message.text || nextEditMessage.length === 0) {
-      console.log(`未修改消息 [${chatId}] [${messageId}]`);
-      return undefined;
-    }
-    try {
-      console.log(`编辑消息 [${chatId}] [${messageId}]`);
-      ctx.api.invoke(new Raw.messages.EditMessage({
-        peer: await client.core.resolvePeer(chatId.toString()),
-        message: nextEditMessage,
-        id: messageId
-      }), 2, 1000, 5000);
-    } catch (error) {
-      console.error(`编辑消息失败 [${chatId}] [${messageId}]: ${error}`);
+    if (msg.text.startsWith("tl")) {
+      nextEditMessage = msg.text.slice(2);
     }
   }
-});
 
-client.run().then(async () => {
-  // 获取自己的 Id
-  myId = client._me.id;
-  console.log(`Bot started with user ${myId}`);
-  // 导出 session
-  // await client._client.exportSession();
-  // 初始化数据库
+  if (nextEditMessage === msg.text || nextEditMessage.length === 0) {
+    console.log(`未修改消息 [${chatId}] [${messageId}]`);
+    return undefined;
+  }
+
   try {
-    await chatSettingsService.initializeDatabase();
-    console.log("数据库初始化成功");
+    console.log(`编辑消息 [${chatId}] [${messageId}]`);
+    await msg.edit({ text: nextEditMessage });
   } catch (error) {
-    console.error("数据库初始化失败:", error);
+    console.error(`编辑消息失败 [${chatId}] [${messageId}]: ${error}`);
   }
-});
+};
 
+const main = async () => {
+  const tg = new TelegramClient({
+    apiId: readApiId(),
+    apiHash: readRequiredEnv("TELEGRAM_API_HASH"),
+    storage: process.env.TELEGRAM_SESSION_FILE || "mtcute.session",
+  });
+
+  await chatSettingsService.initializeDatabase();
+  console.log("数据库初始化成功");
+
+  const dp = Dispatcher.for(tg);
+  const ownTextMessage = filters.and(filters.me, filters.text);
+
+  dp.onError((error) => {
+    console.error("Telegram handler failed:", error);
+    return true;
+  });
+
+  dp.onNewMessage(filters.and(ownTextMessage, filters.command("ping")), pingCommand);
+  dp.onNewMessage(filters.and(ownTextMessage, filters.command("local")), localCommand);
+  dp.onNewMessage(filters.and(ownTextMessage, filters.command("use")), useCommand);
+  dp.onNewMessage(filters.and(ownTextMessage, filters.command("show")), showCommand);
+  dp.onNewMessage(filters.and(ownTextMessage, filters.command("local", { prefixes: "," })), localCommand);
+  dp.onNewMessage(filters.and(ownTextMessage, filters.command("use", { prefixes: "," })), useCommand);
+  dp.onNewMessage(filters.and(ownTextMessage, filters.command("show", { prefixes: "," })), showCommand);
+  dp.onNewMessage(ownTextMessage, translateMessage);
+
+  const self = await tg.start({
+    phone: () => tg.input("Phone > "),
+    code: () => tg.input("Code > "),
+    password: () => tg.input("Password > "),
+  });
+  console.log(`Bot started with user ${self.id}`);
+};
+
+main().catch((error) => {
+  console.error("启动失败:", error);
+  process.exitCode = 1;
+});
