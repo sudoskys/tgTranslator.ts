@@ -4,14 +4,17 @@ import { ChatSettings, chatSettingsSchema } from "../schemas/chatSettings.schema
 import 'dotenv/config';
 import { drizzle } from 'drizzle-orm/libsql';
 import { migrate } from 'drizzle-orm/libsql/migrator';
+import { createLogger } from '../logger';
 
 const db = drizzle(process.env.DB_FILE_NAME || 'file:group.db');
+
+const log = createLogger('db');
 
 export class ChatSettingsService {
   async initializeDatabase(): Promise<void> {
     try {
       await migrate(db, { migrationsFolder: './drizzle' });
-      console.log('数据库检查迁移完成');
+      log.info('migrations checked');
     } catch (error) {
       if (!(error instanceof Error && error.message.includes('already exists'))) {
         throw error;

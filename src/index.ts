@@ -1,10 +1,13 @@
 import { Dispatcher, filters, MessageContext, PropagationAction } from "@mtcute/dispatcher";
 import { TelegramClient } from "@mtcute/node";
 import "dotenv/config";
+import { createLogger, preview } from "./logger";
 import { ChatSettingsService } from "./services/chatSettings.service";
 import { TranslationService } from "./services/translation.service";
 
 const DEFAULT_TARGET_LANGUAGE = "In Fluent English With Internet Style";
+
+const log = createLogger("bot");
 
 const chatSettingsService = new ChatSettingsService();
 const translationService = new TranslationService();
@@ -28,7 +31,7 @@ const readApiId = (): number => {
 const deleteCommandLater = (msg: MessageContext): void => {
   setTimeout(() => {
     msg.delete().catch((error) => {
-      console.error("删除消息失败:", error);
+      log.warn("delete command message failed", error);
     });
   }, 3000);
 };
@@ -57,18 +60,16 @@ const getTargetFromMessage = async (msg: MessageContext): Promise<string> => {
 };
 
 const pingCommand = async (msg: MessageContext) => {
-  console.log("命令：活动测试");
   const chatId = msg.chat.id;
-  console.log(`[Ping] [${msg.sender.id}]`);
+  log.info(`ping from ${msg.sender.id} in chat ${chatId}`);
   deleteCommandLater(msg);
   await msg.replyText(`Chat ID: ${chatId}`);
   return PropagationAction.Stop;
 };
 
 const localCommand = async (msg: MessageContext) => {
-  console.log("命令：翻译对齐");
   const chatId = msg.chat.id;
-  console.log(`[Local] [${msg.sender.id}]`);
+  log.info(`local toggle from ${msg.sender.id} in chat ${chatId}`);
 
   const settings = await chatSettingsService.getSettings(chatId);
   let nextEnabledTranslate = 1;
@@ -91,16 +92,15 @@ const localCommand = async (msg: MessageContext) => {
     );
     await msg.replyText(translated);
   } catch (error) {
-    console.error("翻译失败:", error);
+    log.error("local confirmation translate failed", error);
     await msg.replyText(`Now ${nextEnabledTranslate == 1 ? "enabled" : "disabled"} translate`);
   }
   return PropagationAction.Stop;
 };
 
 const useCommand = async (msg: MessageContext) => {
-  console.log("命令：设置目标语言");
   const chatId = msg.chat.id;
-  console.log(`[Lang] [${msg.sender.id}]`);
+  log.info(`set language from ${msg.sender.id} in chat ${chatId}`);
 
   const targetLanguage = await getTargetFromMessage(msg);
 
@@ -120,20 +120,19 @@ const useCommand = async (msg: MessageContext) => {
       `你好，我会使用 ${targetLanguage} 和你进行无障碍辅助交流`, // 不允许修改
       targetLanguage,
     );
-    console.log("翻译结果:", translated);
+    log.debug(`use confirmation translated: ${preview(translated)}`);
     await msg.replyText(translated);
     deleteCommandLater(msg);
   } catch (error) {
-    console.error("设置消息翻译失败:", error);
+    log.error("use confirmation translate failed", error);
     await msg.replyText("Mistake!");
   }
   return PropagationAction.Stop;
 };
 
 const showCommand = async (msg: MessageContext) => {
-  console.log("命令：显示当前设置");
   const chatId = msg.chat.id;
-  console.log(`[Show] [${msg.sender.id}]`);
+  log.info(`show settings from ${msg.sender.id} in chat ${chatId}`);
 
   const settings = await chatSettingsService.getSettings(chatId);
   if (!settings) {
@@ -149,10 +148,9 @@ const showCommand = async (msg: MessageContext) => {
 // `tl <文本>` 把这条 `tl` 消息原地编辑成 `<文本>` 的译文。
 const translateHandler = async (msg: MessageContext & { match?: RegExpMatchArray }) => {
   const chatId = msg.chat.id;
-  console.log(`[Tl] [${msg.sender.id}]`);
 
   if (!translationService.isServiceConfigured()) {
-    console.warn("翻译服务未正确配置，某些功能可能无法使用");
+    log.warn("translation service not configured; skipping");
     return;
   }
 
@@ -163,19 +161,20 @@ const translateHandler = async (msg: MessageContext & { match?: RegExpMatchArray
 
   const settings = await chatSettingsService.getSettings(chatId);
   if (!settings || settings.enabledTranslate !== 1) {
-    console.log("未启用翻译");
+    log.debug(`translate disabled for chat ${chatId}`);
     return;
   }
 
+  log.info(`tl request in chat ${chatId} msg ${msg.id}: ${preview(source)}`);
   try {
     const translated = await translationService.translate(source, settings.targetLanguage || DEFAULT_TARGET_LANGUAGE);
-    console.log("翻译结果:", translated);
+    log.debug(`translated: ${preview(translated)}`);
     if (translated && translated !== msg.text) {
-      console.log(`编辑消息 [${chatId}] [${msg.id}]`);
       await msg.edit({ text: translated });
+      log.info(`edited chat ${chatId} msg ${msg.id}`);
     }
   } catch (error) {
-    console.error(`翻译或编辑失败 [${chatId}] [${msg.id}]: ${error}`);
+    log.error(`translate or edit failed [chat ${chatId}] [msg ${msg.id}]`, error);
   }
 };
 
@@ -187,16 +186,16 @@ const main = async () => {
   });
 
   await chatSettingsService.initializeDatabase();
-  console.log("数据库初始化成功");
+  log.info("database initialized");
 
   const dp = Dispatcher.for(tg);
   const ownTextMessage = filters.and(filters.me, filters.text);
   const prefixes = ["/", ","];
-  // `tl` 后跟空格再接文本，或单独的 `tl`（配合回复使用）；不误伤 `tldr` 这类词。
+  // 匹配 `tl <文本>`，捕获 `tl ` 之后的内容；`\s` 边界避免误伤 `tldr` 这类词。
   const tlMessage = filters.and(ownTextMessage, filters.regex(/^tl(?:\s([\s\S]*))?$/i));
 
   dp.onError((error) => {
-    console.error("Telegram handler failed:", error);
+    log.error("telegram handler failed", error);
     return true;
   });
 
@@ -212,10 +211,10 @@ const main = async () => {
     code: () => tg.input("Code > "),
     password: () => tg.input("Password > "),
   });
-  console.log(`Bot started with user ${self.id}`);
+  log.info(`bot started as user ${self.id}`);
 };
 
 main().catch((error) => {
-  console.error("启动失败:", error);
+  log.error("startup failed", error);
   process.exitCode = 1;
 });

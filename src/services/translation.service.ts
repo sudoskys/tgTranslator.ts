@@ -1,14 +1,17 @@
 import OpenAI from "openai";
+import { createLogger, preview } from "../logger";
 
 const DEFAULT_BASE_URL = "https://api.deepseek.com";
 const DEFAULT_MODEL = "deepseek-v4-flash";
+
+const log = createLogger("translation");
 
 export class TranslationService {
   private client: OpenAI | null = null;
 
   constructor() {
     if (!process.env.OAI_API_KEY) {
-      console.warn("⚠️ Translation service is not configured: OAI_API_KEY is missing");
+      log.warn("not configured: OAI_API_KEY is missing");
       return;
     }
     this.client = new OpenAI({
@@ -33,7 +36,7 @@ export class TranslationService {
     }
 
     const model = process.env.OAI_MODEL || DEFAULT_MODEL;
-    console.log(`[Translation] [${model}] [Prompt] ${text}`);
+    log.debug(`[${model}] prompt: ${preview(text)}`);
 
     const completion = await this.client.chat.completions.create({
       model,
