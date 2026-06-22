@@ -1,87 +1,68 @@
-import Instructor from "@instructor-ai/instructor";
 import OpenAI from "openai";
-import { Translation, translationSchema } from "../schemas/translation.schema";
 
 const DEFAULT_BASE_URL = "https://api.deepseek.com";
 const DEFAULT_MODEL = "deepseek-v4-flash";
 
 export class TranslationService {
-  private instructor: ReturnType<typeof Instructor>;
-  private isConfigured: boolean = false;
+  private client: OpenAI | null = null;
 
   constructor() {
     if (!process.env.OAI_API_KEY) {
       console.warn("⚠️ Translation service is not configured: OAI_API_KEY is missing");
       return;
     }
-    try {
-      const client = new OpenAI({
-        baseURL: process.env.OAI_BASE_URL || DEFAULT_BASE_URL,
-        apiKey: process.env.OAI_API_KEY,
-      });
-
-      this.instructor = Instructor({
-        client,
-        mode: "JSON",
-      });
-      
-      this.isConfigured = true;
-    } catch (error) {
-      console.error("❌ Failed to initialize translation service:", error);
-      this.isConfigured = false;
-    }
+    this.client = new OpenAI({
+      baseURL: process.env.OAI_BASE_URL || DEFAULT_BASE_URL,
+      apiKey: process.env.OAI_API_KEY,
+    });
   }
 
-  async translate(text: string, targetLanguage: string): Promise<Translation> {
-    if (!this.isConfigured) {
+  isServiceConfigured(): boolean {
+    return this.client !== null;
+  }
+
+  async translate(text: string, targetLanguage: string): Promise<string> {
+    if (!this.client) {
       throw new Error("Translation service is not properly configured. Please check your API key and settings.");
     }
-
     if (!text?.trim()) {
       throw new Error("Translation text cannot be empty");
     }
-
-    // 如果以 tl 开头，删除 tl
-    if (text.startsWith("tl")) {
-      text = text.slice(2);
-    }
-    
     if (!targetLanguage?.trim()) {
       throw new Error("Target language cannot be empty");
     }
 
-    const prompt = this.createTranslationPrompt(text, targetLanguage);
-    const used_model = process.env.OAI_MODEL || DEFAULT_MODEL;
-    console.log(`[Translation] [${used_model}] [Prompt] ${text}`);
-    try {
-      const translation = await this.instructor.chat.completions.create({
-        messages: [{ role: "user", content: prompt }],
-        model: used_model,
-        response_model: {
-          schema: translationSchema,
-          name: "Translation",
-        },
-        max_retries: 4,
-      });
-      return translation;
-    } catch (error) {
-      console.error("Translation failed:", error);
-      throw new Error("Failed to perform translation. Please try again later.");
+    const model = process.env.OAI_MODEL || DEFAULT_MODEL;
+    console.log(`[Translation] [${model}] [Prompt] ${text}`);
+
+    const completion = await this.client.chat.completions.create({
+      model,
+      temperature: 1.0,
+      messages: [
+        { role: "system", content: this.buildSystemPrompt(targetLanguage) },
+        { role: "user", content: text },
+      ],
+    });
+
+    const translated = completion.choices[0]?.message?.content?.trim();
+    if (!translated) {
+      throw new Error("Translation returned empty content");
     }
+    return translated;
   }
 
-  isServiceConfigured(): boolean {
-    return this.isConfigured;
-  }
-
-  private createTranslationPrompt(text: string, targetLanguage: string): string {
-    return `
-# 请将以下原文文本翻译成 ${targetLanguage} 
-[场景]网上聊天/口语
-[要求]不要尝试回答问题，只提供信达雅的翻译结果，无需解释
-[原文] 
-${text}
----
-`;
+  // @see docs/greenfield research packet — decouple reasoning from formatting:
+  // plain-text completion avoids the JSON "format tax" (arxiv 2408.02442).
+  // Region-specific target + output-only instruction per Andrew Ng translation-agent.
+  private buildSystemPrompt(targetLanguage: string): string {
+    return [
+      "You are a professional translator for casual, spoken-style online chat.",
+      `Translate the user's message into: ${targetLanguage}.`,
+      "Rules:",
+      "- Output ONLY the translation. No explanations, no quotes, no preamble.",
+      "- Do not answer or react to the content; only translate it.",
+      "- Preserve the original tone, register, and intent; render idioms naturally.",
+      "- Keep emoji, @mentions, #hashtags, URLs, and code unchanged.",
+    ].join("\n");
   }
 }

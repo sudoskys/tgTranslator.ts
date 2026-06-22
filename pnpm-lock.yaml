@@ -8,9 +8,6 @@ importers:
 
   .:
     dependencies:
-      '@instructor-ai/instructor':
-        specifier: ^1.7.0
-        version: 1.7.0(openai@4.104.0(zod@3.25.76))(zod@3.25.76)
       '@libsql/client':
         specifier: ^0.17.4
         version: 0.17.4
@@ -520,12 +517,6 @@ packages:
   '@fuman/utils@0.0.19':
     resolution: {integrity: sha512-4qVrZ9AjKYztLJsNr1Tp7kL48b22dvVLN1iVW+Me8ZSQ0ILN0qknoxjsczVPReF7+GDWgknNxR2l6ggrA4SZyw==}
 
-  '@instructor-ai/instructor@1.7.0':
-    resolution: {integrity: sha512-7ifu2ZzFBMSOtkY2X5dd2RCxQvfO6Bx+Ag/9V+FkamLGGGciazlTKsEyQR6KSn7BXADLWLIDV296S+O+CifE/A==}
-    peerDependencies:
-      openai: '>=4.58.0'
-      zod: '>=3.23.8'
-
   '@libsql/client@0.17.4':
     resolution: {integrity: sha512-lYayFWasDV78A+TjlEhr6ubb3odBV6OHjb+wdp8VQcyWWAEIjuwbCHaraEUS4m4yWoo0BvZo96It4VdzZRmRWw==}
 
@@ -954,9 +945,6 @@ packages:
   pump@3.0.4:
     resolution: {integrity: sha512-VS7sjc6KR7e1ukRFhQSY5LM2uBWAUPiOPa/A3mkKmiMwSmRFUITt0xuj+/lesgnCv+dPIEYlkzrcyXgquIHMcA==}
 
-  ramda@0.29.1:
-    resolution: {integrity: sha512-OfxIeWzd4xdUNxlWhgFazxsA/nl3mS4/jGZI5n00uWOoSSFRhC1b6gl6xvmzUamgmqELraWp0J/qqVlXYPDPyA==}
-
   rc@1.2.8:
     resolution: {integrity: sha512-y3bGgqKj3QBdxLbLkomlohkvsA8gdAiUQlSBJnBhfn+BPxg4bc62d8TcBW15wavDfgexCgccckhcZvywyQYPOw==}
     hasBin: true
@@ -970,11 +958,6 @@ packages:
 
   safe-buffer@5.2.1:
     resolution: {integrity: sha512-rp3So07KcdmmKbGvgaNxQSJr7bGVSVk5S9Eq1F+ppbRo70+YeaDxkw5Dd8NPN+GD6bjnYm2VuPuCXmpuYvmCXQ==}
-
-  schema-stream@3.2.2:
-    resolution: {integrity: sha512-7hwI/4lbo8sOs7sRbKW9Bh+5qPHOj12tVpskHq1tYakVlWEpdLgeEKXXgzGLaAP1Bw+DcoB4DmdA7/nSxGI5OA==}
-    peerDependencies:
-      zod: ^3.23.3
 
   semver@7.8.1:
     resolution: {integrity: sha512-rkVq3IXh+4FDGch+KwzX3aV9W3kO54GyEgpvBzSyctDA6Xtd7RJQV1xmXbeQp5v7+VzLOfVqiutSE6GICgPFvg==}
@@ -1052,23 +1035,6 @@ packages:
         optional: true
       utf-8-validate:
         optional: true
-
-  zod-stream@3.0.0:
-    resolution: {integrity: sha512-BfW8KI+FCEMQOAIf8Qgc2q67iZ+LZ/zzk7alU45FWiZIrBSt0JMxNVGuc3o1yTpGFVk3zXiHt3TZvmUiad/9nw==}
-    peerDependencies:
-      openai: 4.47.1
-      zod: ^3.23.3
-
-  zod-to-json-schema@3.23.5:
-    resolution: {integrity: sha512-5wlSS0bXfF/BrL4jPAbz9da5hDlDptdEppYfe+x4eIJ7jioqKG9uUxOwPzqof09u/XeVdrgFu29lZi+8XNDJtA==}
-    peerDependencies:
-      zod: ^3.23.3
-
-  zod-validation-error@3.5.4:
-    resolution: {integrity: sha512-+hEiRIiPobgyuFlEojnqjJnhFvg4r/i3cqgcm67eehZf/WBaK3g6cD02YU9mtdVxZjv8CzCA9n/Rhrs3yAAvAw==}
-    engines: {node: '>=18.0.0'}
-    peerDependencies:
-      zod: ^3.24.4
 
   zod@3.25.76:
     resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
@@ -1325,13 +1291,6 @@ snapshots:
       '@fuman/utils': 0.0.19
 
   '@fuman/utils@0.0.19': {}
-
-  '@instructor-ai/instructor@1.7.0(openai@4.104.0(zod@3.25.76))(zod@3.25.76)':
-    dependencies:
-      openai: 4.104.0(zod@3.25.76)
-      zod: 3.25.76
-      zod-stream: 3.0.0(openai@4.104.0(zod@3.25.76))(zod@3.25.76)
-      zod-validation-error: 3.5.4(zod@3.25.76)
 
   '@libsql/client@0.17.4':
     dependencies:
@@ -1778,8 +1737,6 @@ snapshots:
       end-of-stream: 1.4.5
       once: 1.4.0
 
-  ramda@0.29.1: {}
-
   rc@1.2.8:
     dependencies:
       deep-extend: 0.6.0
@@ -1796,11 +1753,6 @@ snapshots:
   resolve-pkg-maps@1.0.0: {}
 
   safe-buffer@5.2.1: {}
-
-  schema-stream@3.2.2(zod@3.25.76):
-    dependencies:
-      ramda: 0.29.1
-      zod: 3.25.76
 
   semver@7.8.1: {}
 
@@ -1870,20 +1822,5 @@ snapshots:
   wrappy@1.0.2: {}
 
   ws@8.18.0: {}
-
-  zod-stream@3.0.0(openai@4.104.0(zod@3.25.76))(zod@3.25.76):
-    dependencies:
-      openai: 4.104.0(zod@3.25.76)
-      schema-stream: 3.2.2(zod@3.25.76)
-      zod: 3.25.76
-      zod-to-json-schema: 3.23.5(zod@3.25.76)
-
-  zod-to-json-schema@3.23.5(zod@3.25.76):
-    dependencies:
-      zod: 3.25.76
-
-  zod-validation-error@3.5.4(zod@3.25.76):
-    dependencies:
-      zod: 3.25.76
 
   zod@3.25.76: {}

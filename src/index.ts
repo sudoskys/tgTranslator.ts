@@ -85,11 +85,11 @@ const localCommand = async (msg: MessageContext) => {
   deleteCommandLater(msg);
 
   try {
-    const translation = await translationService.translate(
+    const translated = await translationService.translate(
       `我为你配置了 ${nextEnabledTranslate == 1 ? "enabled" : "disabled"} 翻译`,
       settings?.targetLanguage || DEFAULT_TARGET_LANGUAGE,
     );
-    await msg.replyText(translation.translatedText);
+    await msg.replyText(translated);
   } catch (error) {
     console.error("翻译失败:", error);
     await msg.replyText(`Now ${nextEnabledTranslate == 1 ? "enabled" : "disabled"} translate`);
@@ -115,15 +115,14 @@ const useCommand = async (msg: MessageContext) => {
     return PropagationAction.Stop;
   }
 
-  deleteCommandLater(msg);
-
   try {
-    const translation = await translationService.translate(
+    const translated = await translationService.translate(
       `你好，我会使用 ${targetLanguage} 和你进行无障碍辅助交流`, // 不允许修改
       targetLanguage,
     );
-    console.log("翻译结果:", translation.translatedText);
-    await msg.replyText(translation.translatedText);
+    console.log("翻译结果:", translated);
+    await msg.replyText(translated);
+    deleteCommandLater(msg);
   } catch (error) {
     console.error("设置消息翻译失败:", error);
     await msg.replyText("Mistake!");
@@ -147,58 +146,36 @@ const showCommand = async (msg: MessageContext) => {
   return PropagationAction.Stop;
 };
 
-const translateMessage = async (msg: MessageContext) => {
+// `tl <文本>` 把这条 `tl` 消息原地编辑成 `<文本>` 的译文。
+const translateHandler = async (msg: MessageContext & { match?: RegExpMatchArray }) => {
   const chatId = msg.chat.id;
-  const messageId = msg.id;
-  console.log(`[Hears] [${msg.sender.id}]`);
+  console.log(`[Tl] [${msg.sender.id}]`);
 
   if (!translationService.isServiceConfigured()) {
     console.warn("翻译服务未正确配置，某些功能可能无法使用");
-    return undefined;
+    return;
   }
 
-  let textToTranslate = msg.text;
-  if (!textToTranslate) {
-    return undefined;
-  }
-
-  if (textToTranslate.startsWith("tl")) {
-    textToTranslate = textToTranslate.slice(2);
-  } else {
-    return undefined;
+  const source = msg.match?.[1]?.trim() ?? "";
+  if (!source) {
+    return;
   }
 
   const settings = await chatSettingsService.getSettings(chatId);
   if (!settings || settings.enabledTranslate !== 1) {
     console.log("未启用翻译");
-    return undefined;
+    return;
   }
 
-  let nextEditMessage = msg.text;
   try {
-    const translation = await translationService.translate(
-      textToTranslate,
-      settings?.targetLanguage || DEFAULT_TARGET_LANGUAGE,
-    );
-    console.log("翻译结果:", translation.translatedText);
-    nextEditMessage = translation.translatedText;
-  } catch (error) {
-    console.error("监听消息翻译失败:", error);
-    if (msg.text.startsWith("tl")) {
-      nextEditMessage = msg.text.slice(2);
+    const translated = await translationService.translate(source, settings.targetLanguage || DEFAULT_TARGET_LANGUAGE);
+    console.log("翻译结果:", translated);
+    if (translated && translated !== msg.text) {
+      console.log(`编辑消息 [${chatId}] [${msg.id}]`);
+      await msg.edit({ text: translated });
     }
-  }
-
-  if (nextEditMessage === msg.text || nextEditMessage.length === 0) {
-    console.log(`未修改消息 [${chatId}] [${messageId}]`);
-    return undefined;
-  }
-
-  try {
-    console.log(`编辑消息 [${chatId}] [${messageId}]`);
-    await msg.edit({ text: nextEditMessage });
   } catch (error) {
-    console.error(`编辑消息失败 [${chatId}] [${messageId}]: ${error}`);
+    console.error(`翻译或编辑失败 [${chatId}] [${msg.id}]: ${error}`);
   }
 };
 
@@ -214,6 +191,9 @@ const main = async () => {
 
   const dp = Dispatcher.for(tg);
   const ownTextMessage = filters.and(filters.me, filters.text);
+  const prefixes = ["/", ","];
+  // `tl` 后跟空格再接文本，或单独的 `tl`（配合回复使用）；不误伤 `tldr` 这类词。
+  const tlMessage = filters.and(ownTextMessage, filters.regex(/^tl(?:\s([\s\S]*))?$/i));
 
   dp.onError((error) => {
     console.error("Telegram handler failed:", error);
@@ -221,13 +201,11 @@ const main = async () => {
   });
 
   dp.onNewMessage(filters.and(ownTextMessage, filters.command("ping")), pingCommand);
-  dp.onNewMessage(filters.and(ownTextMessage, filters.command("local")), localCommand);
-  dp.onNewMessage(filters.and(ownTextMessage, filters.command("use")), useCommand);
-  dp.onNewMessage(filters.and(ownTextMessage, filters.command("show")), showCommand);
-  dp.onNewMessage(filters.and(ownTextMessage, filters.command("local", { prefixes: "," })), localCommand);
-  dp.onNewMessage(filters.and(ownTextMessage, filters.command("use", { prefixes: "," })), useCommand);
-  dp.onNewMessage(filters.and(ownTextMessage, filters.command("show", { prefixes: "," })), showCommand);
-  dp.onNewMessage(ownTextMessage, translateMessage);
+  dp.onNewMessage(filters.and(ownTextMessage, filters.command("local", { prefixes })), localCommand);
+  dp.onNewMessage(filters.and(ownTextMessage, filters.command("use", { prefixes })), useCommand);
+  dp.onNewMessage(filters.and(ownTextMessage, filters.command("show", { prefixes })), showCommand);
+  dp.onNewMessage(tlMessage, translateHandler);
+  dp.onEditMessage(tlMessage, translateHandler);
 
   const self = await tg.start({
     phone: () => tg.input("Phone > "),

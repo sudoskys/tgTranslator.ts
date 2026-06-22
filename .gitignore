@@ -60,3 +60,6 @@ user.cache
 *.cache
 user.session
 *.session
+
+# runtime logs
+/logs
