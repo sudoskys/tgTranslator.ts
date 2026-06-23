@@ -66,7 +66,7 @@ The real-path check must use at least two Telegram accounts in a chat where the 
 
 **Expectation.**
 
-The operator can call `ping`, `on`, `off`, `use <lang>`, and `show` with `/`, `,`, or `，` prefixes after the migration. The commands keep their current observable behavior: ping shows the chat ID, on/off set translation state idempotently, use stores the target language and enables translation, and show reports the stored settings. Command status output edits the original operator command message.
+The operator can call `ping`, `on`, `off`, `use <lang>`, and `show` with `/`, `,`, or `，` prefixes after the migration. The commands keep their current observable behavior: ping shows the chat ID, on/off set translation state idempotently, use stores the target language and enables translation, and show reports the stored settings. Command status output edits the original operator command message; short status commands (`ping`, `on`, `off`) delete the edited message after a short delay.
 
 This Flag keeps the command surface coherent after the client-library migration and the command simplification that replaced the old `local` toggle.
 

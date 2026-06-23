@@ -35,14 +35,21 @@ const getTargetFromMessage = (msg: MessageContext): string | null => {
   return targetLanguage.length !== 0 ? targetLanguage : null;
 };
 
-const editCommand = async (msg: MessageContext, text: string): Promise<void> => {
+const editCommand = async (msg: MessageContext, text: string, deleteAfterMs?: number): Promise<void> => {
   await msg.edit({ text });
+  if (deleteAfterMs === undefined) return;
+
+  setTimeout(() => {
+    msg.delete().catch((error) => {
+      log.warn("delete edited command message failed", error);
+    });
+  }, deleteAfterMs);
 };
 
 const pingCommand = async (msg: MessageContext) => {
   const chatId = msg.chat.id;
   log.info(`ping from ${msg.sender.id} in chat ${chatId}`);
-  await editCommand(msg, `Chat ID: ${chatId}`);
+  await editCommand(msg, `Chat ID: ${chatId}`, 3000);
   return PropagationAction.Stop;
 };
 
@@ -59,7 +66,7 @@ const setEnabledCommand = (enabled: boolean) => async (msg: MessageContext) => {
     targetLanguage,
   });
 
-  await editCommand(msg, `Translation ${enabled ? "enabled" : "disabled"}.`);
+  await editCommand(msg, `Translation ${enabled ? "enabled" : "disabled"}.`, 3000);
   return PropagationAction.Stop;
 };
 

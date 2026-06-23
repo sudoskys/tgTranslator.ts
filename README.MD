@@ -72,7 +72,7 @@ Do not share your `.env` file or `.session` file with others.
 - `/show` - Show current translation settings
 - `tl [text]` - Translate the following text (prefix any message with 'tl' to translate)
 
-Command status edits the original command message.
+Command status edits the original command message. Short status commands such as `/ping`, `/on`, and `/off` delete that edited message after a short delay.
 
 ## Acknowledgments
 

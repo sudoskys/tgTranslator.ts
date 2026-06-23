@@ -35,6 +35,7 @@ Telegram command from operator
   -> ChatSettingsService upserts settings
   -> optional TranslationService confirmation message
   -> mtcute MessageContext.edit edits the original command message
+  -> short status commands may delete the edited command message after a short delay
 ```
 
 ## Authority And State
@@ -59,7 +60,7 @@ Telegram command from operator
 
 | Interface | Owner | Contract |
 |---|---|---|
-| Telegram commands | `src/index.ts` | `ping`, `on`, `off`, `use <lang>`, `show`. Each accepts the prefixes `/`, `,`, and full-width `，`. `on`/`off` are idempotent translation switches; `use` sets the target language and enables translation. Command status edits the original command message. |
+| Telegram commands | `src/index.ts` | `ping`, `on`, `off`, `use <lang>`, `show`. Each accepts the prefixes `/`, `,`, and full-width `，`. `on`/`off` are idempotent translation switches; `use` sets the target language and enables translation. Command status edits the original command message; short status commands (`ping`, `on`, `off`) delete the edited message after a short delay. |
 | Telegram text prefix | `src/index.ts` | Messages beginning with `tl` are candidates for translation when chat translation is enabled. |
 | Environment variables | Runtime process | `TELEGRAM_API_ID`, `TELEGRAM_API_HASH`, `TELEGRAM_SESSION_FILE`, `OAI_BASE_URL`, `OAI_API_KEY`, `OAI_MODEL`, `DB_FILE_NAME`, and `LOG_LEVEL`. |
 | Database table | `src/db/schema.ts` | `chat_settings(id, chatId, enabledTranslate, targetLanguage)`. |
