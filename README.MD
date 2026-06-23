@@ -66,14 +66,18 @@ Do not share your `.env` file or `.session` file with others.
 ### Bot Commands
 
 - `/ping` - Test if the bot is active and get current chat ID
-- `/local` - Toggle translation feature on/off
-- `/use [target_language]` - Set target language for translations
+- `/on` - Enable translation for the current chat
+- `/off` - Disable translation for the current chat
+- `/use [target_language]` - Set target language and enable translation
+- `/show` - Show current translation settings
 - `tl [text]` - Translate the following text (prefix any message with 'tl' to translate)
+
+Command status prefers editing the original command message. If the command message can no longer be edited, the bot sends a normal status message instead.
 
 ## Acknowledgments
 
 - [mtcute](https://github.com/mtcute/mtcute) - Telegram MTProto framework
-- [instructor-ai](https://github.com/instructor-ai/instructor-js) - Translate text with AI
+- [OpenAI SDK](https://github.com/openai/openai-node) - OpenAI-compatible translation calls
 - [Bun](https://bun.sh/) - For the amazing runtime and tooling
 
 ---

@@ -48,6 +48,10 @@ i18n_me_prod
 # env
 .env
 
+# per-chat settings from prior JSON-store experiments
+settings.json
+settings.json.tmp
+
 # sqlite
 *.db
 src/start.d.ts
@@ -63,3 +67,6 @@ user.session
 
 # runtime logs
 /logs
+
+# exported conversation logs
+conversation-*.txt

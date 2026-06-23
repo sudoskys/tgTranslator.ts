@@ -32,7 +32,7 @@ This Flag keeps the runtime behavior simple. The product command surface remains
 
 **Verification.**
 
-The static contract is checked by TypeScript and build verification. `pnpm exec tsc --noEmit` and `pnpm run build` must compile the service with the new defaults. A real-path verification still requires a DeepSeek-compatible API key and one translation request.
+The static contract is checked by TypeScript verification. `pnpm run check-type` must compile the service with the new defaults. A real-path verification still requires a DeepSeek-compatible API key and one translation request.
 
 **Reference.**
 
@@ -44,7 +44,7 @@ The static contract is checked by TypeScript and build verification. `pnpm exec 
 
 **Expectation.**
 
-The operator sends `tl hello` after setting a target language. The runtime path continues through `TranslationService`, `@instructor-ai/instructor`, and the OpenAI-compatible client. Ax does not own Telegram message handling, database writes, provider fallback, or message editing.
+The operator sends `tl hello` after setting a target language. The runtime path continues through `TranslationService` and the OpenAI-compatible client. Ax does not own Telegram message handling, database writes, provider fallback, or message editing.
 
 Ax may become useful after the project has a small translation eval set. In that future path, Ax should optimize prompts or examples offline and produce artifacts that a maintainer reviews before promotion.
 

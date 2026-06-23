@@ -49,6 +49,27 @@ or multi-tenant layer — those are out of scope per `docs/GOAL.md`.
 
 Every selection above is `evidence-backed`. No `期望值估算` rows.
 
+### §1a Conversation context (refinement, 2026-06-23)
+
+The translate verb now sends **recent conversation context** as a disambiguation
+input: the most recent ~7 messages plus the reply-to message (highlighted). **One
+unified mental model** — reply-to is just the highlighted member of the recent
+window, not a separate path. Context resolves pronouns, register, and ambiguity in
+short utterances. Still single-chunk, output-only, no reflection.
+
+This extends the original `tl` trigger row, which scoped context to reply-to only.
+The translation system prompt also shifts from "professional translator" to a
+**transcreation** persona (be the speaker, not a word-for-word translator), bounded
+by a "do not add/drop meaning" rule, and temperature drops 1.0 → 0.3.
+
+Evidence: TowerChat WMT24 (context +4 CHRF), Sung et al. WMT24 (recent turns +
+summary), *Lost in Literalism* ACL 2025 (translationese), Unbabel transcreation
+EAMT 2024 (ZH/JA/KO), Peng et al. (low temp for Chinese MT). Same-class production
+userbot `aimoda/telegram-auto-translate` uses a 10-msg window. Caveat preserved: a
+non-chat-finetuned model can use context poorly (TowerChat), so the window is kept
+small (7) and the context is clearly fenced as "do not translate this".
+@see docs/research/2026-06-23-translation-quality-evidence.md
+
 ---
 
 ## §2 Directory structure
@@ -87,7 +108,7 @@ For each greenfield package, the readable benchmark file that shows what it shou
 | `bot/client.ts` | mtcute (local) | `docs/reference/mtcute/docs/guide/intro/*` | TelegramClient construction + `start()` auth flow; current `index.ts:204-235` already matches |
 | `bot/router.ts` | kastaid-ds (MIT) | `~/.agents/refs/kastaid-ds/ds/kasta.py` + `ds/plugins/delayspam.py:23` | `@on_message(filters.command([...], prefixes=...) & filters.me & ~filters.forwarded)` — declarative command + self-filter; map to mtcute `filters.and(filters.me, filters.command(...))` |
 | `bot/commands/translate.ts` | getter (AGPL, /tmp, **design-only**) | `/tmp/gf-refs/getter/getter/plugins/translate.py:71` | `tl` as `kasta_cmd(pattern=..., edited=True)`, reply-aware text source, progress `eor("...")` → final edit. Observe design; do not copy AGPL code. |
-| `bot/commands/settings.ts` | kastaid-ds (MIT) | `~/.agents/refs/kastaid-ds/ds/plugins/misc.py`, `delayspam.py` | per-command handler with docstring-as-help, `await m.delete()` for command cleanup (current `deleteCommandLater`, `index.ts:28`) |
+| `bot/commands/settings.ts` | kastaid-ds (MIT) | `~/.agents/refs/kastaid-ds/ds/plugins/misc.py`, `delayspam.py` | per-command handler with docstring-as-help; current command status uses in-place edit instead of reply/delete cleanup |
 | `translate/service.ts` | translation-agent (MIT) | `~/.agents/refs/translation-agent/src/translation_agent/utils.py:231,87` | `one_chunk_translate_text`; expert-linguist output-only system message; matches current `translation.service.ts:38-67` |
 | `settings/store.ts` + `schema.ts` | in-repo | `src/services/chatSettings.service.ts`, `src/db/schema.ts` | get/upsert per-chat row; already the source of truth, retained as-is |
 | `config.ts` | kastaid-ds (MIT) | `~/.agents/refs/kastaid-ds/ds/config.py:15,28` | `env(key, default)` helper + typed `Var` class; fail-fast mirrors current `readRequiredEnv` `index.ts:12` |

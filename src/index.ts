@@ -28,73 +28,47 @@ const readApiId = (): number => {
   return value;
 };
 
-const deleteCommandLater = (msg: MessageContext): void => {
-  setTimeout(() => {
-    msg.delete().catch((error) => {
-      log.warn("delete command message failed", error);
-    });
-  }, 3000);
+// `use <lang>` 之后的全部内容即目标语言；mtcute 已把命令拆进 `msg.command`。
+const getTargetFromMessage = (msg: MessageContext): string | null => {
+  const commandArgs = "command" in msg && Array.isArray(msg.command) ? msg.command.slice(1) : [];
+  const targetLanguage = commandArgs.join(" ").trim();
+  return targetLanguage.length !== 0 ? targetLanguage : null;
 };
 
-const getTargetFromMessage = async (msg: MessageContext): Promise<string> => {
-  const commandArgs = "command" in msg && Array.isArray(msg.command) ? msg.command.slice(1) : [];
-  const targetLanguage = commandArgs[0];
-
-  if (targetLanguage && targetLanguage.length !== 0) {
-    return targetLanguage;
-  }
-
-  if (msg.text.length !== 0) {
-    const legacyTargetLanguage = msg.text.split(" ")[1];
-    if (legacyTargetLanguage && legacyTargetLanguage.length !== 0) {
-      return legacyTargetLanguage;
+const editOrAnswer = async (msg: MessageContext, text: string): Promise<void> => {
+  try {
+    await msg.edit({ text });
+  } catch (editError) {
+    log.warn("edit command message failed; answering instead", editError);
+    try {
+      await msg.answerText(text);
+    } catch (answerError) {
+      log.error("answer command message failed", answerError);
     }
   }
-
-  const replyToMessage = await msg.getReplyTo();
-  if (replyToMessage?.text) {
-    return `Used Language of "${replyToMessage.text}"`;
-  }
-
-  return `Used Language of "${msg.chat.displayName}"`;
 };
 
 const pingCommand = async (msg: MessageContext) => {
   const chatId = msg.chat.id;
   log.info(`ping from ${msg.sender.id} in chat ${chatId}`);
-  deleteCommandLater(msg);
-  await msg.replyText(`Chat ID: ${chatId}`);
+  await editOrAnswer(msg, `Chat ID: ${chatId}`);
   return PropagationAction.Stop;
 };
 
-const localCommand = async (msg: MessageContext) => {
+const setEnabledCommand = (enabled: boolean) => async (msg: MessageContext) => {
   const chatId = msg.chat.id;
-  log.info(`local toggle from ${msg.sender.id} in chat ${chatId}`);
+  log.info(`set translate ${enabled ? "on" : "off"} from ${msg.sender.id} in chat ${chatId}`);
 
   const settings = await chatSettingsService.getSettings(chatId);
-  let nextEnabledTranslate = 1;
-  if (settings?.enabledTranslate != 0) {
-    nextEnabledTranslate = 0;
-  }
+  const targetLanguage = settings?.targetLanguage || DEFAULT_TARGET_LANGUAGE;
 
   await chatSettingsService.upsertSettings({
     chatId,
-    enabledTranslate: nextEnabledTranslate,
-    targetLanguage: settings?.targetLanguage || DEFAULT_TARGET_LANGUAGE,
+    enabledTranslate: enabled ? 1 : 0,
+    targetLanguage,
   });
 
-  deleteCommandLater(msg);
-
-  try {
-    const translated = await translationService.translate(
-      `我为你配置了 ${nextEnabledTranslate == 1 ? "enabled" : "disabled"} 翻译`,
-      settings?.targetLanguage || DEFAULT_TARGET_LANGUAGE,
-    );
-    await msg.replyText(translated);
-  } catch (error) {
-    log.error("local confirmation translate failed", error);
-    await msg.replyText(`Now ${nextEnabledTranslate == 1 ? "enabled" : "disabled"} translate`);
-  }
+  await editOrAnswer(msg, `Translation ${enabled ? "enabled" : "disabled"}.`);
   return PropagationAction.Stop;
 };
 
@@ -102,30 +76,34 @@ const useCommand = async (msg: MessageContext) => {
   const chatId = msg.chat.id;
   log.info(`set language from ${msg.sender.id} in chat ${chatId}`);
 
-  const targetLanguage = await getTargetFromMessage(msg);
+  const targetLanguage = getTargetFromMessage(msg);
+  if (!targetLanguage) {
+    await editOrAnswer(msg, "Usage: /use <target language>, e.g. /use Japanese");
+    return PropagationAction.Stop;
+  }
 
   await chatSettingsService.upsertSettings({
     chatId,
     enabledTranslate: 1,
-    targetLanguage: targetLanguage || DEFAULT_TARGET_LANGUAGE,
+    targetLanguage,
   });
 
   if (!translationService.isServiceConfigured()) {
-    await msg.replyText(`I configured translation to ${targetLanguage}, but service is not configured`);
+    await editOrAnswer(msg, `Translation target set to ${targetLanguage}, but the service is not configured.`);
     return PropagationAction.Stop;
   }
 
   try {
+    // 翻译一句端庄得体的状态提示:既验证 API 通,又给对方看一眼该语言的样例,但不打招呼。
     const translated = await translationService.translate(
-      `你好，我会使用 ${targetLanguage} 和你进行无障碍辅助交流`, // 不允许修改
+      "翻译已经准备就绪，接下来我们可以顺畅地交流了。",
       targetLanguage,
     );
     log.debug(`use confirmation translated: ${preview(translated)}`);
-    await msg.replyText(translated);
-    deleteCommandLater(msg);
+    await editOrAnswer(msg, translated);
   } catch (error) {
     log.error("use confirmation translate failed", error);
-    await msg.replyText("Mistake!");
+    await editOrAnswer(msg, "Translation target was saved, but the confirmation translation failed.");
   }
   return PropagationAction.Stop;
 };
@@ -136,13 +114,59 @@ const showCommand = async (msg: MessageContext) => {
 
   const settings = await chatSettingsService.getSettings(chatId);
   if (!settings) {
-    await msg.replyText("未找到设置");
+    await editOrAnswer(msg, "未找到设置");
     return PropagationAction.Stop;
   }
 
-  deleteCommandLater(msg);
-  await msg.replyText(`Translation enabled: ${settings.enabledTranslate ? "Yes" : "No"}\nTarget language: ${settings.targetLanguage}`);
+  await editOrAnswer(msg, `Translation enabled: ${settings.enabledTranslate ? "Yes" : "No"}\nTarget language: ${settings.targetLanguage}`);
   return PropagationAction.Stop;
+};
+
+// 统一的会话上下文：最近 N 条消息 + 高亮被回复的那条，供翻译消歧（代词/语域/指代）。
+// reply-to 只是最近窗口里被高亮的一条，不是单独路径。@see greenfield §1a。
+const CONTEXT_MESSAGE_COUNT = 7;
+
+const formatContextLine = (sender: string, text: string, isReply: boolean, isOutgoing: boolean): string => {
+  if (isReply) return `>>> REPLYING TO [${sender}]: ${text}`;
+  return `${isOutgoing ? "(YOU) " : ""}[${sender}]: ${text}`;
+};
+
+const buildConversationContext = async (msg: MessageContext): Promise<string | undefined> => {
+  // 被回复消息的 id 从消息自身读取，不发 RPC；reply-to 多半就在最近窗口内。
+  const replyToId = msg.replyToMessage?.id ?? null;
+
+  let history;
+  try {
+    // getHistory 默认最新在前；多取一条以便排除当前 tl 消息，再反转成时间正序。
+    history = await msg.client.getHistory(msg.chat, { limit: CONTEXT_MESSAGE_COUNT + 1 });
+  } catch (error) {
+    log.warn("fetch history context failed", error);
+    return undefined;
+  }
+
+  const recent = history
+    .filter((m) => m.id !== msg.id && m.text)
+    .slice(0, CONTEXT_MESSAGE_COUNT)
+    .reverse();
+
+  const lines = recent.map((m) => formatContextLine(m.sender.displayName, m.text, m.id === replyToId, m.isOutgoing));
+
+  // 仅当被回复的是窗口外的较早消息时，才补一次 RPC 取回并置顶高亮。
+  if (replyToId !== null && !recent.some((m) => m.id === replyToId)) {
+    try {
+      const reply = await msg.getReplyTo();
+      if (reply?.text) {
+        lines.unshift(formatContextLine(reply.sender.displayName, reply.text, true, reply.isOutgoing), "");
+      }
+    } catch (error) {
+      log.warn("fetch out-of-window reply failed", error);
+    }
+  }
+
+  const context = lines.length ? lines.join("\n") : undefined;
+  // 元信息走 info 便于观察上下文是否组装；内容经 preview 脱敏（info 仅显字符数，debug 显全文）。
+  log.info(`context: ${recent.length} msgs${replyToId !== null ? " (reply-aware)" : ""}, ${preview(context)}`);
+  return context;
 };
 
 // `tl <文本>` 把这条 `tl` 消息原地编辑成 `<文本>` 的译文。
@@ -165,9 +189,13 @@ const translateHandler = async (msg: MessageContext & { match?: RegExpMatchArray
     return;
   }
 
+  // Context-aware: feed recent conversation (incl. reply-to) so the model can
+  // resolve pronouns, register, and ambiguity in casual chat. @see greenfield §1a.
+  const context = await buildConversationContext(msg);
+
   log.info(`tl request in chat ${chatId} msg ${msg.id}: ${preview(source)}`);
   try {
-    const translated = await translationService.translate(source, settings.targetLanguage || DEFAULT_TARGET_LANGUAGE);
+    const translated = await translationService.translate(source, settings.targetLanguage || DEFAULT_TARGET_LANGUAGE, context);
     log.debug(`translated: ${preview(translated)}`);
     if (translated && translated !== msg.text) {
       await msg.edit({ text: translated });
@@ -190,7 +218,7 @@ const main = async () => {
 
   const dp = Dispatcher.for(tg);
   const ownTextMessage = filters.and(filters.me, filters.text);
-  const prefixes = ["/", ","];
+  const prefixes = ["/", ",", "，"];
   // 匹配 `tl <文本>`，捕获 `tl ` 之后的内容；`\s` 边界避免误伤 `tldr` 这类词。
   const tlMessage = filters.and(ownTextMessage, filters.regex(/^tl(?:\s([\s\S]*))?$/i));
 
@@ -199,8 +227,9 @@ const main = async () => {
     return true;
   });
 
-  dp.onNewMessage(filters.and(ownTextMessage, filters.command("ping")), pingCommand);
-  dp.onNewMessage(filters.and(ownTextMessage, filters.command("local", { prefixes })), localCommand);
+  dp.onNewMessage(filters.and(ownTextMessage, filters.command("ping", { prefixes })), pingCommand);
+  dp.onNewMessage(filters.and(ownTextMessage, filters.command("on", { prefixes })), setEnabledCommand(true));
+  dp.onNewMessage(filters.and(ownTextMessage, filters.command("off", { prefixes })), setEnabledCommand(false));
   dp.onNewMessage(filters.and(ownTextMessage, filters.command("use", { prefixes })), useCommand);
   dp.onNewMessage(filters.and(ownTextMessage, filters.command("show", { prefixes })), showCommand);
   dp.onNewMessage(tlMessage, translateHandler);

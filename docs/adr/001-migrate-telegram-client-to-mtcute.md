@@ -36,7 +36,7 @@ This Flag keeps the client boundary single-owned. A future reader should not hav
 
 **Verification.**
 
-The static contract is checked by build and grep-level inspection. `pnpm run build` must compile the TypeScript entrypoint, and a repository search for `tgsnake` must find only historical documentation or migration notes until those notes are deliberately removed. The stronger runtime contract is a real Telegram startup using the migrated client and persisted `mtcute` session.
+The static contract is checked by TypeScript and grep-level inspection. `pnpm run check-type` must compile the TypeScript entrypoint, and a repository search for `tgsnake` must find only historical documentation or migration notes until those notes are deliberately removed. The stronger runtime contract is a real Telegram startup using the migrated client and persisted `mtcute` session.
 
 **Reference.**
 
@@ -62,17 +62,17 @@ The real-path check must use at least two Telegram accounts in a chat where the 
 - [docs/ARCHITECTURE.md](../ARCHITECTURE.md) — current authority table
 - [docs/reference/mtcute/packages/dispatcher/src/filters/user.ts](../reference/mtcute/packages/dispatcher/src/filters/user.ts) — `filters.me` behavior
 
-### Flag 3: Existing Command Semantics Stay Stable
+### Flag 3: Current Command Semantics Stay Coherent
 
 **Expectation.**
 
-The operator can call `/ping`, `/local`, `/use`, `/show`, `,local`, `,use`, and `,show` after the migration. The commands keep their current observable behavior: ping replies with the chat ID, local toggles translation, use stores the target language, and show reports the stored settings. Command messages that are currently deleted after a delay remain deleted after a delay unless Telegram rejects deletion.
+The operator can call `ping`, `on`, `off`, `use <lang>`, and `show` with `/`, `,`, or `，` prefixes after the migration. The commands keep their current observable behavior: ping shows the chat ID, on/off set translation state idempotently, use stores the target language and enables translation, and show reports the stored settings. Command status output edits the original operator command message where Telegram permits editing, and sends a normal answer if the command message is no longer editable.
 
-This Flag makes the migration reversible and reviewable. It keeps command behavior out of the client-library decision.
+This Flag keeps the command surface coherent after the client-library migration and the command simplification that replaced the old `local` toggle.
 
 **Verification.**
 
-The real-path check must exercise every command form in one private chat or group chat and inspect the visible Telegram result. The database check must confirm that `chat_settings.chatId`, `enabledTranslate`, and `targetLanguage` changed only as the command semantics require. `pnpm run build` guards the TypeScript surface, but it does not prove command behavior by itself.
+The real-path check must exercise every command form in one private chat or group chat and inspect the visible Telegram result. The database check must confirm that `chat_settings.chatId`, `enabledTranslate`, and `targetLanguage` changed only as the command semantics require. `pnpm run check-type` guards the TypeScript surface, but it does not prove command behavior by itself.
 
 **Reference.**
 

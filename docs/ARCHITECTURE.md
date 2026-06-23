@@ -13,7 +13,7 @@ This document records code-confirmed or README-confirmed facts. Mark unknowns ho
 | Module | Responsibility | Notes |
 |---|---|---|
 | `src/index.ts` | Creates the `mtcute` client, registers command handlers, filters non-operator messages, and edits translated messages. | The handler uses `filters.me` after `mtcute` authenticates the operator account. |
-| `src/services/translation.service.ts` | Wraps the OpenAI-compatible client with `@instructor-ai/instructor` and returns structured translation output. | The service requires `OAI_API_KEY`; `OAI_BASE_URL` defaults to DeepSeek's API URL, and `OAI_MODEL` defaults to `deepseek-v4-flash`. |
+| `src/services/translation.service.ts` | Wraps the OpenAI-compatible client and returns output-only translated text. | The service requires `OAI_API_KEY`; `OAI_BASE_URL` defaults to DeepSeek's API URL, and `OAI_MODEL` defaults to `deepseek-v4-flash`. |
 | `src/services/chatSettings.service.ts` | Reads and writes per-chat translation settings through Drizzle. | The service runs migrations from `./drizzle` during startup. |
 | `src/db/schema.ts` | Defines the `chat_settings` table. | The table stores `chatId`, `enabledTranslate`, and `targetLanguage`. |
 | `src/schemas/*.schema.ts` | Defines Zod schemas and TypeScript types for service data. | `targetLanguage` is limited to 1-100 characters. |
@@ -34,7 +34,7 @@ Telegram command from operator
   -> command handler in src/index.ts
   -> ChatSettingsService upserts settings
   -> optional TranslationService confirmation message
-  -> Telegram reply or delayed command deletion
+  -> mtcute MessageContext.edit edits the original command message, with answer fallback if editing fails
 ```
 
 ## Authority And State
@@ -44,7 +44,7 @@ Telegram command from operator
 | Which Telegram account may control the bot? | `mtcute` authenticated self state through `filters.me` | Message handlers | Non-matching senders return without action. |
 | Is translation enabled for a chat? | `chat_settings.enabledTranslate` | Message and command handlers | Missing settings disable translation. |
 | What target language should a chat use? | `chat_settings.targetLanguage` | Translation and command handlers | New settings default to `In Fluent English With Internet Style`. |
-| What text did the model produce? | OpenAI-compatible API response parsed by `translationSchema` | Message edit and replies | Translation failure logs an error and either leaves the message unchanged or returns a fallback reply. |
+| What text did the model produce? | OpenAI-compatible API response text | Message edits and command status output | Translation failure logs an error and either leaves the message unchanged or returns a fallback status. |
 
 ## External Dependencies
 
@@ -52,7 +52,6 @@ Telegram command from operator
 |---|---|---|---|
 | Telegram MTProto via `mtcute` | yes | Read and edit Telegram messages as a UserBot. | Startup or message operations can fail when credentials, session, or network are unavailable. |
 | DeepSeek/OpenAI-compatible API via `openai` | yes for translation | Generate translated text. | Missing `OAI_API_KEY` disables translation behavior. |
-| `@instructor-ai/instructor` | yes for structured translation | Parse model output through a Zod response model. | Translation requests throw when parsing or completion fails. |
 | SQLite/libSQL via Drizzle | yes for settings | Persist per-chat settings. | Startup migration or settings reads/writes can fail. |
 | `dotenv` | yes | Load local environment variables. | Missing variables fall back only where code defines defaults. |
 
@@ -60,16 +59,16 @@ Telegram command from operator
 
 | Interface | Owner | Contract |
 |---|---|---|
-| Telegram commands | `src/index.ts` | `/ping`, `/local`, `/use`, `/show`, and comma-prefixed variants for `use`, `local`, and `show`. |
+| Telegram commands | `src/index.ts` | `ping`, `on`, `off`, `use <lang>`, `show`. Each accepts the prefixes `/`, `,`, and full-width `，`. `on`/`off` are idempotent translation switches; `use` sets the target language and enables translation. Command status prefers editing the original command message and falls back to sending a normal answer when the command message cannot be edited, for example after auto-delete. |
 | Telegram text prefix | `src/index.ts` | Messages beginning with `tl` are candidates for translation when chat translation is enabled. |
-| Environment variables | Runtime process | `TELEGRAM_API_ID`, `TELEGRAM_API_HASH`, `TELEGRAM_SESSION_FILE`, `OAI_BASE_URL`, `OAI_API_KEY`, `OAI_MODEL`, and `DB_FILE_NAME`. |
+| Environment variables | Runtime process | `TELEGRAM_API_ID`, `TELEGRAM_API_HASH`, `TELEGRAM_SESSION_FILE`, `OAI_BASE_URL`, `OAI_API_KEY`, `OAI_MODEL`, `DB_FILE_NAME`, and `LOG_LEVEL`. |
 | Database table | `src/db/schema.ts` | `chat_settings(id, chatId, enabledTranslate, targetLanguage)`. |
-| Translation result | `src/schemas/translation.schema.ts` | The translation service returns `{ translatedText: string }`. |
+| Translation result | `src/services/translation.service.ts` | The translation service returns a translated string. |
 
 ## Verification
 
 ```bash
-pnpm run build
+pnpm run check-type
 make adr-lint
 make adr-index
 ```

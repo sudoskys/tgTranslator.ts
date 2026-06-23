@@ -11,7 +11,7 @@ This file routes agent work. It is not a README, tutorial, or changelog.
 | Architecture decision | `docs/adr/ACTIVE.md` | ADR decision workflow | ADR has classification, invariant, alternatives, verification, and implementation log |
 | Adding enforcement, boundary check, cap, quota, silent skip, fallback, retry, or early return | Relevant source owner in `src/` | `preflight` skill | Filled 6-field artifact before the first edit |
 | Telegram command or message-flow change | `src/index.ts` and `docs/ARCHITECTURE.md` | TypeScript change with real-path awareness | Focused check plus manual or real Telegram verification when credentials are available |
-| Translation behavior change | `src/services/translation.service.ts` and `src/schemas/translation.schema.ts` | Data/API behavior review | Build check plus real OpenAI-compatible request when credentials are available |
+| Translation behavior change | `src/services/translation.service.ts` and `src/schemas/translation.schema.ts` | Data/API behavior review | Type check plus real OpenAI-compatible request when credentials are available |
 | Chat settings or database change | `src/services/chatSettings.service.ts`, `src/db/schema.ts`, and `drizzle/` | Data design and migration review | Drizzle migration check against a real local SQLite/libSQL database |
 | Test strategy | Existing code paths and failure evidence | Testing methodology | Reproduction or fidelity-appropriate test |
 | Security or secrets | `README.MD`, `.gitignore`, and affected code | Security review | Confirm `.env`, Telegram session, and generated secrets stay out of git |
@@ -21,8 +21,7 @@ This file routes agent work. It is not a README, tutorial, or changelog.
 ```bash
 pnpm install
 pnpm run start
-pnpm run build
-pnpm run build:prod
+pnpm run check-type
 make adr-lint
 make adr-index
 ```

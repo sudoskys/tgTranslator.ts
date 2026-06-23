@@ -11,7 +11,7 @@
 - It listens to Telegram text messages from the authenticated operator.
 - It translates messages prefixed with `tl` into a configured target language.
 - It stores per-chat translation settings in a local SQLite/libSQL database.
-- It exposes chat commands for pinging, toggling translation, setting a target language, and showing current settings.
+- It exposes chat commands for pinging, enabling/disabling translation, setting a target language, and showing current settings.
 
 ## What This Project Does Not Do
 
