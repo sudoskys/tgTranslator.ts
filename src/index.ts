@@ -120,53 +120,6 @@ const showCommand = async (msg: MessageContext) => {
   return PropagationAction.Stop;
 };
 
-// 统一的会话上下文：最近 N 条消息 + 高亮被回复的那条，供翻译消歧（代词/语域/指代）。
-// reply-to 只是最近窗口里被高亮的一条，不是单独路径。@see greenfield §1a。
-const CONTEXT_MESSAGE_COUNT = 7;
-
-const formatContextLine = (sender: string, text: string, isReply: boolean, isOutgoing: boolean): string => {
-  if (isReply) return `>>> REPLYING TO [${sender}]: ${text}`;
-  return `${isOutgoing ? "(YOU) " : ""}[${sender}]: ${text}`;
-};
-
-const buildConversationContext = async (msg: MessageContext): Promise<string | undefined> => {
-  // 被回复消息的 id 从消息自身读取，不发 RPC；reply-to 多半就在最近窗口内。
-  const replyToId = msg.replyToMessage?.id ?? null;
-
-  let history;
-  try {
-    // getHistory 默认最新在前；多取一条以便排除当前 tl 消息，再反转成时间正序。
-    history = await msg.client.getHistory(msg.chat, { limit: CONTEXT_MESSAGE_COUNT + 1 });
-  } catch (error) {
-    log.warn("fetch history context failed", error);
-    return undefined;
-  }
-
-  const recent = history
-    .filter((m) => m.id !== msg.id && m.text)
-    .slice(0, CONTEXT_MESSAGE_COUNT)
-    .reverse();
-
-  const lines = recent.map((m) => formatContextLine(m.sender.displayName, m.text, m.id === replyToId, m.isOutgoing));
-
-  // 仅当被回复的是窗口外的较早消息时，才补一次 RPC 取回并置顶高亮。
-  if (replyToId !== null && !recent.some((m) => m.id === replyToId)) {
-    try {
-      const reply = await msg.getReplyTo();
-      if (reply?.text) {
-        lines.unshift(formatContextLine(reply.sender.displayName, reply.text, true, reply.isOutgoing), "");
-      }
-    } catch (error) {
-      log.warn("fetch out-of-window reply failed", error);
-    }
-  }
-
-  const context = lines.length ? lines.join("\n") : undefined;
-  // 元信息走 info 便于观察上下文是否组装；内容经 preview 脱敏（info 仅显字符数，debug 显全文）。
-  log.info(`context: ${recent.length} msgs${replyToId !== null ? " (reply-aware)" : ""}, ${preview(context)}`);
-  return context;
-};
-
 // `tl <文本>` 把这条 `tl` 消息原地编辑成 `<文本>` 的译文。
 const translateHandler = async (msg: MessageContext & { match?: RegExpMatchArray }) => {
   const chatId = msg.chat.id;
@@ -187,13 +140,9 @@ const translateHandler = async (msg: MessageContext & { match?: RegExpMatchArray
     return;
   }
 
-  // Context-aware: feed recent conversation (incl. reply-to) so the model can
-  // resolve pronouns, register, and ambiguity in casual chat. @see greenfield §1a.
-  const context = await buildConversationContext(msg);
-
   log.info(`tl request in chat ${chatId} msg ${msg.id}: ${preview(source)}`);
   try {
-    const translated = await translationService.translate(source, settings.targetLanguage || DEFAULT_TARGET_LANGUAGE, context);
+    const translated = await translationService.translate(source, settings.targetLanguage || DEFAULT_TARGET_LANGUAGE);
     log.debug(`translated: ${preview(translated)}`);
     if (translated && translated !== msg.text) {
       await msg.edit({ text: translated });

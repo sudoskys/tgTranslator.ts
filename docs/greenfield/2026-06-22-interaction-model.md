@@ -52,28 +52,13 @@ Every selection above is `evidence-backed`. No `期望值估算` rows.
 ### §1a Conversation context (refinement, 2026-06-23)
 
 **Status note (2026-06-23):** production testing on Gemini 2.5 Flash invalidated
-default context assembly for the immediate translation hot path. For that
-sub-scope, `docs/greenfield/2026-06-23-translation-hot-path.md` replaces this
-refinement; this parent document remains active for routing and edit-in-place
-interaction.
+context assembly for the translation path. For that sub-scope,
+`docs/greenfield/2026-06-23-translation-path.md` replaces this refinement; this
+parent document remains active for routing and edit-in-place interaction.
 
-The translate verb now sends **recent conversation context** as a disambiguation
-input: the most recent ~7 messages plus the reply-to message (highlighted). **One
-unified mental model** — reply-to is just the highlighted member of the recent
-window, not a separate path. Context resolves pronouns, register, and ambiguity in
-short utterances. Still single-chunk, output-only, no reflection.
-
-This extends the original `tl` trigger row, which scoped context to reply-to only.
-The translation system prompt also shifts from "professional translator" to a
-**transcreation** persona (be the speaker, not a word-for-word translator), bounded
-by a "do not add/drop meaning" rule, and temperature drops 1.0 → 0.3.
-
-Evidence: TowerChat WMT24 (context +4 CHRF), Sung et al. WMT24 (recent turns +
-summary), *Lost in Literalism* ACL 2025 (translationese), Unbabel transcreation
-EAMT 2024 (ZH/JA/KO), Peng et al. (low temp for Chinese MT). Same-class production
-userbot `aimoda/telegram-auto-translate` uses a 10-msg window. Caveat preserved: a
-non-chat-finetuned model can use context poorly (TowerChat), so the window is kept
-small (7) and the context is clearly fenced as "do not translate this".
+This refinement proposed recent conversation context for disambiguation, but it
+is now withdrawn. The remaining translation-quality changes are the transcreation
+persona and lower temperature; the translation path itself stays inline-only.
 @see docs/research/2026-06-23-translation-quality-evidence.md
 
 ---
@@ -148,7 +133,7 @@ Attacked the design from the "redesign of an existing system" vectors.
 - **"Does the benchmark operate at our complexity?"** getter/ds are larger (30+ plugins) but the *routing primitive* is identical at any scale; we adopt only the primitive, not the plugin sprawl (guards against second-system effect).
 - **"Is a rejected alternative actually better for us?"** The catch-all is only 'better' if we needed to inspect every message — we do not; `tl` is an explicit opt-in. The instructor/JSON path is only better if output needed structure — it does not; output is one plain string. Both rejections hold.
 - **"Hedge words hiding undecided choices?"** Selection table grepped for 如果/可能/兼容/部分/INCONCLUSIVE — none present in §1 selections.
-- **"Reply-aware tl — real need or feature creep?"** Bounded: it is the same handler reading `msg.getReplyTo()` (current code already calls this at `index.ts:51` for `/use`), not a new subsystem. Net code shrinks. Accepted.
+- **"Reply-aware tl — real need or feature creep?"** Superseded for the translation path: `tl <text>` stays inline-only after Gemini 2.5 Flash production testing showed context can mislead the model.
 
 **Verdict: PASS.** No BLOCK or ASK items. The design reduces routing surface (7 registrations → 1 table; 2 mechanisms → 1) while preserving the maintainer's preferred bare-`tl` ergonomics.
 

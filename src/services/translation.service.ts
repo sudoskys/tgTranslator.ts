@@ -24,7 +24,7 @@ export class TranslationService {
     return this.client !== null;
   }
 
-  async translate(text: string, targetLanguage: string, context?: string): Promise<string> {
+  async translate(text: string, targetLanguage: string): Promise<string> {
     if (!this.client) {
       throw new Error("Translation service is not properly configured. Please check your API key and settings.");
     }
@@ -46,7 +46,7 @@ export class TranslationService {
       // 0.3 keeps a little casual-chat variety; drop toward 0.1 if faithfulness regresses.
       temperature: 0.3,
       messages: [
-        { role: "system", content: this.buildSystemPrompt(targetLanguage, context) },
+        { role: "system", content: this.buildSystemPrompt(targetLanguage) },
         { role: "user", content: text },
       ],
     });
@@ -66,9 +66,9 @@ export class TranslationService {
   // @see docs/research/2026-06-23-translation-quality-evidence.md (full evidence table)
   // @see https://aclanthology.org/2025.acl-long.630/ (Lost in Literalism, ACL 2025)
   // @see https://aclanthology.org/2024.eamt-2.29.pdf (Cultural Transcreation, Unbabel EAMT 2024)
-  // @see https://github.com/aimoda/telegram-auto-translate (same-class production userbot)
-  private buildSystemPrompt(targetLanguage: string, context?: string): string {
-    const lines = [
+  // @see docs/greenfield/2026-06-23-translation-path.md
+  private buildSystemPrompt(targetLanguage: string): string {
+    return [
       "You are a native speaker of the target language doing transcreation, not word-for-word translation.",
       `You are NOT a translator; you ARE the speaker, expressing the user's message as you'd naturally say it in: ${targetLanguage}.`,
       "Core principles:",
@@ -81,16 +81,6 @@ export class TranslationService {
       "- Do not answer or react to the content; only express it in the target language.",
       "- Do not add or drop meaning that is not in the source.",
       "- Keep emoji, @mentions, #hashtags, URLs, and code unchanged.",
-    ];
-    if (context?.trim()) {
-      lines.push(
-        "Conversation so far (most recent last; '(YOU)' marks the speaker, '>>> REPLYING TO'",
-        "marks the message being replied to). Use it to resolve pronouns, register, and",
-        "ambiguity, and to match how participants speak — but express ONLY the user's",
-        "message, never translate this context:",
-        context.trim(),
-      );
-    }
-    return lines.join("\n");
+    ].join("\n");
   }
 }
