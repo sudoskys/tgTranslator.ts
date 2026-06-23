@@ -12,8 +12,11 @@ A Telegram **UserBot** that provides real-time message translation capabilities,
 
 ## Prerequisites
 
-- [Bun](https://bun.sh/), go to [Bun](https://bun.sh/) to install
+- Node.js 20 or newer
+- [pnpm](https://pnpm.io/installation)
 - DeepSeek API key or another OpenAI-compatible API key for the translation service
+
+Use pnpm for dependency installation. Do not run `bun install` or `npm install` in this repository.
 
 ## Installation
 
@@ -78,7 +81,7 @@ Command status edits the original command message. Short status commands such as
 
 - [mtcute](https://github.com/mtcute/mtcute) - Telegram MTProto framework
 - [OpenAI SDK](https://github.com/openai/openai-node) - OpenAI-compatible translation calls
-- [Bun](https://bun.sh/) - For the amazing runtime and tooling
+- [pnpm](https://pnpm.io/) - Package management
 
 ---
 Made with ❤️ by [@sudoskys](https://github.com/sudoskys)
