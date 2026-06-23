@@ -34,7 +34,7 @@ Telegram command from operator
   -> command handler in src/index.ts
   -> ChatSettingsService upserts settings
   -> optional TranslationService confirmation message
-  -> mtcute MessageContext.edit edits the original command message, with answer fallback if editing fails
+  -> mtcute MessageContext.edit edits the original command message
 ```
 
 ## Authority And State
@@ -44,7 +44,7 @@ Telegram command from operator
 | Which Telegram account may control the bot? | `mtcute` authenticated self state through `filters.me` | Message handlers | Non-matching senders return without action. |
 | Is translation enabled for a chat? | `chat_settings.enabledTranslate` | Message and command handlers | Missing settings disable translation. |
 | What target language should a chat use? | `chat_settings.targetLanguage` | Translation and command handlers | New settings default to `In Fluent English With Internet Style`. |
-| What text did the model produce? | OpenAI-compatible API response text | Message edits and command status output | Translation failure logs an error and either leaves the message unchanged or returns a fallback status. |
+| What text did the model produce? | OpenAI-compatible API response text | Message edits and command status output | Translation failure logs an error and either leaves the message unchanged or edits command status to an error. |
 
 ## External Dependencies
 
@@ -59,7 +59,7 @@ Telegram command from operator
 
 | Interface | Owner | Contract |
 |---|---|---|
-| Telegram commands | `src/index.ts` | `ping`, `on`, `off`, `use <lang>`, `show`. Each accepts the prefixes `/`, `,`, and full-width `，`. `on`/`off` are idempotent translation switches; `use` sets the target language and enables translation. Command status prefers editing the original command message and falls back to sending a normal answer when the command message cannot be edited, for example after auto-delete. |
+| Telegram commands | `src/index.ts` | `ping`, `on`, `off`, `use <lang>`, `show`. Each accepts the prefixes `/`, `,`, and full-width `，`. `on`/`off` are idempotent translation switches; `use` sets the target language and enables translation. Command status edits the original command message. |
 | Telegram text prefix | `src/index.ts` | Messages beginning with `tl` are candidates for translation when chat translation is enabled. |
 | Environment variables | Runtime process | `TELEGRAM_API_ID`, `TELEGRAM_API_HASH`, `TELEGRAM_SESSION_FILE`, `OAI_BASE_URL`, `OAI_API_KEY`, `OAI_MODEL`, `DB_FILE_NAME`, and `LOG_LEVEL`. |
 | Database table | `src/db/schema.ts` | `chat_settings(id, chatId, enabledTranslate, targetLanguage)`. |

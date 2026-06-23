@@ -72,7 +72,7 @@ Do not share your `.env` file or `.session` file with others.
 - `/show` - Show current translation settings
 - `tl [text]` - Translate the following text (prefix any message with 'tl' to translate)
 
-Command status prefers editing the original command message. If the command message can no longer be edited, the bot sends a normal status message instead.
+Command status edits the original command message.
 
 ## Acknowledgments
 

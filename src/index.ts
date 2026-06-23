@@ -35,23 +35,14 @@ const getTargetFromMessage = (msg: MessageContext): string | null => {
   return targetLanguage.length !== 0 ? targetLanguage : null;
 };
 
-const editOrAnswer = async (msg: MessageContext, text: string): Promise<void> => {
-  try {
-    await msg.edit({ text });
-  } catch (editError) {
-    log.warn("edit command message failed; answering instead", editError);
-    try {
-      await msg.answerText(text);
-    } catch (answerError) {
-      log.error("answer command message failed", answerError);
-    }
-  }
+const editCommand = async (msg: MessageContext, text: string): Promise<void> => {
+  await msg.edit({ text });
 };
 
 const pingCommand = async (msg: MessageContext) => {
   const chatId = msg.chat.id;
   log.info(`ping from ${msg.sender.id} in chat ${chatId}`);
-  await editOrAnswer(msg, `Chat ID: ${chatId}`);
+  await editCommand(msg, `Chat ID: ${chatId}`);
   return PropagationAction.Stop;
 };
 
@@ -68,7 +59,7 @@ const setEnabledCommand = (enabled: boolean) => async (msg: MessageContext) => {
     targetLanguage,
   });
 
-  await editOrAnswer(msg, `Translation ${enabled ? "enabled" : "disabled"}.`);
+  await editCommand(msg, `Translation ${enabled ? "enabled" : "disabled"}.`);
   return PropagationAction.Stop;
 };
 
@@ -78,7 +69,7 @@ const useCommand = async (msg: MessageContext) => {
 
   const targetLanguage = getTargetFromMessage(msg);
   if (!targetLanguage) {
-    await editOrAnswer(msg, "Usage: /use <target language>, e.g. /use Japanese");
+    await editCommand(msg, "Usage: /use <target language>, e.g. /use Japanese");
     return PropagationAction.Stop;
   }
 
@@ -89,7 +80,7 @@ const useCommand = async (msg: MessageContext) => {
   });
 
   if (!translationService.isServiceConfigured()) {
-    await editOrAnswer(msg, `Translation target set to ${targetLanguage}, but the service is not configured.`);
+    await editCommand(msg, `Translation target set to ${targetLanguage}, but the service is not configured.`);
     return PropagationAction.Stop;
   }
 
@@ -100,10 +91,10 @@ const useCommand = async (msg: MessageContext) => {
       targetLanguage,
     );
     log.debug(`use confirmation translated: ${preview(translated)}`);
-    await editOrAnswer(msg, translated);
+    await editCommand(msg, translated);
   } catch (error) {
     log.error("use confirmation translate failed", error);
-    await editOrAnswer(msg, "Translation target was saved, but the confirmation translation failed.");
+    await editCommand(msg, "Translation target was saved, but the confirmation translation failed.");
   }
   return PropagationAction.Stop;
 };
@@ -114,11 +105,11 @@ const showCommand = async (msg: MessageContext) => {
 
   const settings = await chatSettingsService.getSettings(chatId);
   if (!settings) {
-    await editOrAnswer(msg, "未找到设置");
+    await editCommand(msg, "未找到设置");
     return PropagationAction.Stop;
   }
 
-  await editOrAnswer(msg, `Translation enabled: ${settings.enabledTranslate ? "Yes" : "No"}\nTarget language: ${settings.targetLanguage}`);
+  await editCommand(msg, `Translation enabled: ${settings.enabledTranslate ? "Yes" : "No"}\nTarget language: ${settings.targetLanguage}`);
   return PropagationAction.Stop;
 };
 
