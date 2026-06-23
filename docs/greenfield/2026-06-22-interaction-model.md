@@ -51,6 +51,12 @@ Every selection above is `evidence-backed`. No `期望值估算` rows.
 
 ### §1a Conversation context (refinement, 2026-06-23)
 
+**Status note (2026-06-23):** production testing on Gemini 2.5 Flash invalidated
+default context assembly for the immediate translation hot path. For that
+sub-scope, `docs/greenfield/2026-06-23-translation-hot-path.md` replaces this
+refinement; this parent document remains active for routing and edit-in-place
+interaction.
+
 The translate verb now sends **recent conversation context** as a disambiguation
 input: the most recent ~7 messages plus the reply-to message (highlighted). **One
 unified mental model** — reply-to is just the highlighted member of the recent
